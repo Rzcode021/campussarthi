@@ -1,0 +1,37 @@
+import React from 'react';
+import { Star } from 'lucide-react';
+
+interface StarRatingProps {
+  value: number;
+  onChange?: (v: number) => void;
+  readonly?: boolean;
+  size?: number;
+}
+
+export default function StarRating({ value, onChange, readonly = false, size = 20 }: StarRatingProps) {
+  const [hovered, setHovered] = React.useState(0);
+
+  return (
+    <div className="flex items-center gap-1">
+      {[1, 2, 3, 4, 5].map((star) => {
+        const filled = star <= (hovered || value);
+        return (
+          <button
+            key={star}
+            type="button"
+            disabled={readonly}
+            onClick={() => !readonly && onChange?.(star)}
+            onMouseEnter={() => !readonly && setHovered(star)}
+            onMouseLeave={() => !readonly && setHovered(0)}
+            className={`transition-colors ${readonly ? 'cursor-default' : 'cursor-pointer'}`}
+          >
+            <Star
+              size={size}
+              className={filled ? 'text-yellow-400 fill-yellow-400' : 'text-border'}
+            />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
