@@ -7,8 +7,10 @@ from .serializers import CrewMemberSerializer, CrewRatingSerializer
 from accounts.models import CustomUser
 
 
+from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
+
 class CrewListView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get(self, request):
         crew = CrewMember.objects.filter(is_active=True).select_related('user')
@@ -54,9 +56,12 @@ class MyRatingsView(APIView):
         return Response(result)
 
 
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+
 # Admin views
 class AdminCrewListView(APIView):
     permission_classes = [IsAuthenticated, IsAdminUser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get(self, request):
         crew = CrewMember.objects.all().select_related('user')
@@ -70,6 +75,7 @@ class AdminCrewListView(APIView):
         title = request.data.get('title', '')
         department = request.data.get('department', '')
         bio = request.data.get('bio', '')
+        profile_photo = request.FILES.get('profile_photo')
 
         user, created = CustomUser.objects.get_or_create(
             email=email,
@@ -77,7 +83,11 @@ class AdminCrewListView(APIView):
         )
         if created:
             user.set_password(password)
-            user.save()
+        
+        if profile_photo:
+            user.profile_photo = profile_photo
+        
+        user.save()
 
         crew, _ = CrewMember.objects.get_or_create(
             user=user,
@@ -88,14 +98,31 @@ class AdminCrewListView(APIView):
 
 class AdminCrewDetailView(APIView):
     permission_classes = [IsAuthenticated, IsAdminUser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def put(self, request, pk):
         try:
-            crew = CrewMember.objects.get(pk=pk)
+            crew = CrewMember.objects.select_related('user').get(pk=pk)
             for field in ['title', 'department', 'bio', 'is_active']:
                 if field in request.data:
-                    setattr(crew, field, request.data[field])
+                    setattr(crew, field, request.data.get(field))
             crew.save()
+
+            user_updated = False
+            if 'full_name' in request.data:
+                crew.user.full_name = request.data.get('full_name')
+                user_updated = True
+            if 'email' in request.data:
+                crew.user.email = request.data.get('email')
+                user_updated = True
+
+            if 'profile_photo' in request.FILES:
+                crew.user.profile_photo = request.FILES['profile_photo']
+                user_updated = True
+                
+            if user_updated:
+                crew.user.save()
+
             return Response(CrewMemberSerializer(crew).data)
         except CrewMember.DoesNotExist:
             return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
@@ -103,8 +130,62 @@ class AdminCrewDetailView(APIView):
     def delete(self, request, pk):
         try:
             crew = CrewMember.objects.get(pk=pk)
-            crew.is_active = False
-            crew.save()
-            return Response({'message': 'Crew member deactivated'})
+            user = crew.user
+            crew.delete() # Hard delete the crew profile
+            # Optional: deactivate the underlying user or hard delete it
+            user.is_active = False
+            user.save()
+            return Response({'message': 'Crew member deleted'})
         except CrewMember.DoesNotExist:
+            return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+from .models import PlacementFamilyMember
+from .serializers import PlacementFamilyMemberSerializer
+
+class PlacementFamilyListView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        members = PlacementFamilyMember.objects.all()
+        serializer = PlacementFamilyMemberSerializer(members, many=True)
+        return Response(serializer.data)
+
+class AdminPlacementFamilyListView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get(self, request):
+        members = PlacementFamilyMember.objects.all()
+        serializer = PlacementFamilyMemberSerializer(members, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = PlacementFamilyMemberSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class AdminPlacementFamilyDetailView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def put(self, request, pk):
+        try:
+            member = PlacementFamilyMember.objects.get(pk=pk)
+            serializer = PlacementFamilyMemberSerializer(member, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except PlacementFamilyMember.DoesNotExist:
+            return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    def delete(self, request, pk):
+        try:
+            member = PlacementFamilyMember.objects.get(pk=pk)
+            member.delete()
+            return Response({'message': 'Deleted'})
+        except PlacementFamilyMember.DoesNotExist:
             return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)

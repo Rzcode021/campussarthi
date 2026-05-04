@@ -20,3 +20,6 @@ urlpatterns = [
     path('api/admin/', include('news.admin_urls')),
     path('api/admin/', include('resources.admin_urls')),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

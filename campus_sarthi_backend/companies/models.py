@@ -1,6 +1,7 @@
 import os
 from django.db import models
 from django.conf import settings
+from cloudinary_storage.storage import RawMediaCloudinaryStorage
 
 
 class Company(models.Model):
@@ -69,7 +70,7 @@ class CompanyDocument(models.Model):
     section = models.CharField(max_length=30, choices=SECTION_CHOICES)
     title = models.CharField(max_length=200)
     description = models.CharField(max_length=300, blank=True)
-    file = models.FileField(upload_to='campus_sarthi/company_docs/')
+    file = models.FileField(upload_to='campus_sarthi/company_docs/', storage=RawMediaCloudinaryStorage())
     file_type = models.CharField(max_length=20, blank=True)
     file_size = models.CharField(max_length=20, blank=True)
     download_count = models.IntegerField(default=0)

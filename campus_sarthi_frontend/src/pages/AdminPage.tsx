@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Users, Building2, FileText, ShieldCheck, Check, X, Plus, Upload, Trash2, Send, Save, BookOpen, Newspaper, Edit, Eye, Download } from 'lucide-react';
+import { Users, Building2, FileText, ShieldCheck, Check, X, Plus, Upload, Trash2, Send, Save, BookOpen, Edit, Eye, Download } from 'lucide-react';
 import { adminApi } from '../services/adminApi';
 import { adminDocumentsApi } from '../services/companyDocumentsApi';
 import type { User } from '../types/user';
@@ -8,8 +8,9 @@ import type { StudyMaterial } from '../types/studyMaterial';
 import { useToast } from '../context/ToastContext';
 import CompanyWizard from '../components/CompanyWizard';
 import { getDomainColor } from '../utils/companyAvatar';
+import AdminPlacementFamily from '../components/AdminPlacementFamily';
 
-type Tab = 'overview' | 'users' | 'companies' | 'materials' | 'documents' | 'news' | 'resources';
+type Tab = 'overview' | 'users' | 'crew' | 'companies' | 'materials' | 'documents' | 'news' | 'resources' | 'placement-family';
 
 interface Stats {
   total_students: number;
@@ -36,6 +37,7 @@ export default function AdminPage() {
   const [allDocuments, setAllDocuments] = useState<AdminCompanyDocument[]>([]);
   const [allNews, setAllNews] = useState<any[]>([]);
   const [allResources, setAllResources] = useState<any[]>([]);
+  const [allCrew, setAllCrew] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [rejectingId, setRejectingId] = useState<number | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
@@ -54,6 +56,13 @@ export default function AdminPage() {
   const [userSubTab, setUserSubTab] = useState<'pending' | 'all'>('pending');
   const [userRoleFilter, setUserRoleFilter] = useState<string>('all');
   const [changingRoleId, setChangingRoleId] = useState<number | null>(null);
+  
+  // Crew specific state
+  const [showCrewModal, setShowCrewModal] = useState(false);
+  const [crewForm, setCrewForm] = useState<{ id?: number, email: string, full_name: string, title: string, department: string, bio: string, profile_photo: File | null }>({
+    email: '', full_name: '', title: 'Placement Coordinator', department: 'T&P Cell', bio: '', profile_photo: null
+  });
+  
   const { showToast } = useToast();
 
   const handleViewFile = (url: string) => {
@@ -97,10 +106,6 @@ export default function AdminPage() {
     adminApi.getAdminStudyMaterials().then((r) => setAllMaterials(r.data)).catch(() => {});
   }, []);
 
-  const loadDocuments = useCallback(() => {
-    adminDocumentsApi.getAll().then((r) => setAllDocuments(r.data)).catch(() => {});
-  }, []);
-
   useEffect(() => {
     setIsLoading(true);
     Promise.all([
@@ -112,7 +117,8 @@ export default function AdminPage() {
       adminApi.getAdminResources(),
       adminApi.getDrafts(),
       adminDocumentsApi.getAll(),
-    ]).then(([s, u, c, m, n, r, d, docs]) => {
+      adminApi.getAdminCrew(),
+    ]).then(([s, u, c, m, n, r, d, docs, crew]) => {
       setStats(s.data);
       setPendingUsers(u.data);
       setAllCompanies(c.data);
@@ -121,6 +127,7 @@ export default function AdminPage() {
       setAllResources(r.data);
       setDrafts(d.data);
       setAllDocuments(docs.data);
+      setAllCrew(crew.data);
       adminApi.getAllUsers(undefined, true).then((res) => setAllUsers(res.data)).catch(() => {});
     }).catch(() => {}).finally(() => setIsLoading(false));
   }, []);
@@ -277,6 +284,45 @@ export default function AdminPage() {
     } catch { showToast('Failed to create resource.', 'error'); }
   };
 
+  const handleSaveCrew = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const fd = new FormData();
+    if (crewForm.email) fd.append('email', crewForm.email);
+    if (crewForm.full_name) fd.append('full_name', crewForm.full_name);
+    fd.append('title', crewForm.title);
+    fd.append('department', crewForm.department);
+    fd.append('bio', crewForm.bio);
+    if (crewForm.profile_photo) {
+      fd.append('profile_photo', crewForm.profile_photo);
+    }
+
+    try {
+      if (crewForm.id) {
+        await adminApi.updateCrewMember(crewForm.id, fd);
+        showToast('Crew member updated!', 'success');
+      } else {
+        await adminApi.createCrewMember(fd);
+        showToast('Crew member added!', 'success');
+      }
+      setShowCrewModal(false);
+      setCrewForm({ email: '', full_name: '', title: 'Placement Coordinator', department: 'T&P Cell', bio: '', profile_photo: null });
+      adminApi.getAdminCrew().then(r => setAllCrew(r.data));
+    } catch (error: any) { 
+      console.error(error);
+      showToast(error.response?.data?.error || 'Failed to save crew member.', 'error'); 
+    }
+  };
+
+  const handleDeleteCrew = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this crew member? This cannot be undone.')) return;
+    try {
+      await adminApi.deleteCrewMember(id);
+      setAllCrew(prev => prev.filter(c => c.id !== id));
+      showToast('Crew member deleted.', 'info');
+      loadStats();
+    } catch { showToast('Delete failed.', 'error'); }
+  };
+
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!uploadFile) { showToast('Please select a file.', 'error'); return; }
@@ -326,9 +372,11 @@ export default function AdminPage() {
     } catch { showToast('Delete failed.', 'error'); }
   };
 
-  const TABS: { id: Tab; label: string; badge?: number }[] = [
+  const TABS: { id: Tab | 'crew'; label: string; badge?: number }[] = [
     { id: 'overview', label: 'Overview' },
     { id: 'users', label: 'Users', badge: pendingUsers.length },
+    { id: 'crew', label: 'Crew', badge: 0 },
+    { id: 'placement-family', label: 'Placement Family' },
     { id: 'companies', label: 'Companies', badge: allCompanies.filter((c) => c.status === 'pending').length },
     { id: 'materials', label: 'Study Materials', badge: allMaterials.filter((m) => m.status === 'pending').length },
     { id: 'documents', label: 'Documents', badge: allDocuments.filter((d) => d.status === 'pending').length },
@@ -595,6 +643,74 @@ export default function AdminPage() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Crew Tab */}
+      {tab === 'crew' && (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-heading text-lg">Crew Management ({allCrew.length})</h2>
+            <button
+              onClick={() => {
+                setCrewForm({ email: '', full_name: '', title: 'Placement Coordinator', department: 'T&P Cell', bio: '', profile_photo: null });
+                setShowCrewModal(true);
+              }}
+              className="btn-primary flex items-center gap-2"
+            >
+              <Plus size={16} /> Add Crew Member
+            </button>
+          </div>
+
+          <div className="card overflow-hidden">
+            <div className="divide-y divide-border">
+              {allCrew.length === 0 ? (
+                <div className="py-12 text-center text-muted text-sm">No crew members found.</div>
+              ) : allCrew.map((c) => {
+                const initials = c.user.full_name?.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase();
+                return (
+                  <div key={c.id} className="flex items-center gap-4 px-6 py-4 hover:bg-surface/30 transition-colors">
+                    <div className="w-12 h-12 rounded-full overflow-hidden bg-purple-100 text-purple-700 font-bold text-sm flex items-center justify-center flex-shrink-0 border border-purple-200">
+                      {c.user.profile_photo ? (
+                        <img src={c.user.profile_photo} alt={c.user.full_name} className="w-full h-full object-cover" />
+                      ) : (
+                        initials
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-heading text-sm">{c.user.full_name} {c.user.is_active ? '' : '(Deactivated)'}</p>
+                      <p className="text-xs text-muted">{c.title} · {c.department}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setCrewForm({
+                            id: c.id,
+                            email: c.user.email,
+                            full_name: c.user.full_name,
+                            title: c.title,
+                            department: c.department,
+                            bio: c.bio,
+                            profile_photo: null
+                          });
+                          setShowCrewModal(true);
+                        }}
+                        className="btn-secondary py-1.5 px-3 text-xs flex items-center gap-1.5"
+                      >
+                        <Edit size={14} /> Edit / Photo
+                      </button>
+                      <button
+                        onClick={() => handleDeleteCrew(c.id)}
+                        className="btn-danger py-1.5 px-3 text-xs flex items-center gap-1.5"
+                      >
+                        <Trash2 size={14} /> Delete
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
 
@@ -1138,6 +1254,76 @@ export default function AdminPage() {
           initialDraftData={draftToEdit}
         />
       )}
+
+      {/* Crew Modal */}
+      {showCrewModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-surface border border-border w-full max-w-lg rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <h2 className="text-lg font-bold text-heading">{crewForm.id ? 'Edit Crew Member' : 'Add Crew Member'}</h2>
+              <button onClick={() => setShowCrewModal(false)} className="text-muted hover:text-heading"><X size={20} /></button>
+            </div>
+            <form onSubmit={handleSaveCrew} className="p-6 space-y-4">
+              {!crewForm.id && (
+                <>
+                  <div>
+                    <label className="form-label">Email Address *</label>
+                    <input className="form-input" type="email" value={crewForm.email} onChange={e => setCrewForm({ ...crewForm, email: e.target.value })} required />
+                  </div>
+                  <div>
+                    <label className="form-label">Full Name *</label>
+                    <input className="form-input" value={crewForm.full_name} onChange={e => setCrewForm({ ...crewForm, full_name: e.target.value })} required />
+                  </div>
+                </>
+              )}
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="form-label">Title *</label>
+                  <input className="form-input" value={crewForm.title} onChange={e => setCrewForm({ ...crewForm, title: e.target.value })} required />
+                </div>
+                <div>
+                  <label className="form-label">Department *</label>
+                  <input className="form-input" value={crewForm.department} onChange={e => setCrewForm({ ...crewForm, department: e.target.value })} required />
+                </div>
+              </div>
+
+              <div>
+                <label className="form-label">Bio (Optional)</label>
+                <textarea className="form-input resize-none" rows={3} value={crewForm.bio} onChange={e => setCrewForm({ ...crewForm, bio: e.target.value })} />
+              </div>
+
+              <div>
+                <label className="form-label">Profile Photo (Optional)</label>
+                <div className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${crewForm.profile_photo ? 'border-primary bg-primary-light' : 'border-border hover:border-primary'}`}>
+                  <input id="crew-photo-upload" type="file" className="hidden" accept="image/*" onChange={(e) => setCrewForm({ ...crewForm, profile_photo: e.target.files?.[0] || null })} />
+                  <label htmlFor="crew-photo-upload" className="cursor-pointer">
+                    {crewForm.profile_photo ? (
+                      <div>
+                        <p className="text-primary font-medium text-sm">{crewForm.profile_photo.name}</p>
+                      </div>
+                    ) : (
+                      <div>
+                        <Upload size={24} className="mx-auto text-muted mb-2" />
+                        <p className="text-sm text-muted">Click to select an image</p>
+                      </div>
+                    )}
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => setShowCrewModal(false)} className="btn-secondary flex-1">Cancel</button>
+                <button type="submit" className="btn-primary flex-1">{crewForm.id ? 'Save Changes' : 'Create Crew Member'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {tab === 'placement-family' && (
+        <AdminPlacementFamily />
+      )}
     </div>
   );
 }
+

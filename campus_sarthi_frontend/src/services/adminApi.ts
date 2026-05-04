@@ -41,10 +41,15 @@ export const adminApi = {
     api.delete(`/api/admin/study-materials/${id}/`),
   // Crew
   getAdminCrew: () => api.get('/api/admin/crew/'),
-  createCrewMember: (data: Record<string, unknown>) =>
-    api.post('/api/admin/crew/', data),
-  updateCrewMember: (id: number, data: Record<string, unknown>) =>
-    api.put(`/api/admin/crew/${id}/`, data),
+  createCrewMember: (data: FormData | Record<string, unknown>) =>
+    api.post('/api/admin/crew/', data, {
+      headers: data instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : {},
+    }),
+  updateCrewMember: (id: number, data: FormData | Record<string, unknown>) =>
+    api.put(`/api/admin/crew/${id}/`, data, {
+      headers: data instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : {},
+    }),
+  deleteCrewMember: (id: number) => api.delete(`/api/admin/crew/${id}/`),
   // News
   getAdminNews: () => api.get('/api/admin/news/'),
   createNewsArticle: (data: Record<string, unknown>) =>

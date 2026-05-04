@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.db.models import Avg
-from .models import CrewMember, CrewRating
+from .models import CrewMember, CrewRating, PlacementFamilyMember
 from accounts.serializers import UserSerializer
 
 
@@ -26,3 +26,9 @@ class CrewRatingSerializer(serializers.ModelSerializer):
         model = CrewRating
         fields = ['id', 'crew_member', 'rated_by', 'stars', 'comment', 'updated_at']
         read_only_fields = ['rated_by']
+
+
+class PlacementFamilyMemberSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PlacementFamilyMember
+        fields = '__all__'

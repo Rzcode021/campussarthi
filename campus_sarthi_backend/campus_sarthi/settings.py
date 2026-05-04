@@ -34,21 +34,31 @@ INSTALLED_APPS = [
 
 import cloudinary
 
+CLOUDINARY_CLOUD_NAME = os.getenv('CLOUDINARY_CLOUD_NAME')
+
 CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': os.getenv('CLOUDINARY_CLOUD_NAME'),
+    'CLOUD_NAME': CLOUDINARY_CLOUD_NAME,
     'API_KEY': os.getenv('CLOUDINARY_API_KEY'),
     'API_SECRET': os.getenv('CLOUDINARY_API_SECRET'),
     'SECURE': True,
 }
 
 cloudinary.config(
-    cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME'),
+    cloud_name=CLOUDINARY_CLOUD_NAME,
     api_key=os.getenv('CLOUDINARY_API_KEY'),
     api_secret=os.getenv('CLOUDINARY_API_SECRET'),
     secure=True
 )
 
-DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+if CLOUDINARY_CLOUD_NAME and CLOUDINARY_CLOUD_NAME != 'demo_cloud':
+    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+else:
+    # Use local storage if no valid Cloudinary credentials are provided
+    DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+
+import os
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
 
 
 MIDDLEWARE = [
@@ -125,6 +135,15 @@ SIMPLE_JWT = {
 
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:5175',
+    'http://localhost:5176',
+    'http://localhost:5177',
+    'http://localhost:5178',
+    'http://localhost:5179',
+    'http://localhost:5180',
     'http://127.0.0.1:5173',
+    'http://127.0.0.1:5174',
+    'http://127.0.0.1:5175',
 ]
 CORS_ALLOW_CREDENTIALS = True

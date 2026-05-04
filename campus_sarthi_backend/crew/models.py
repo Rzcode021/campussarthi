@@ -25,3 +25,23 @@ class CrewRating(models.Model):
 
     class Meta:
         unique_together = ('crew_member', 'rated_by')
+
+
+class PlacementFamilyMember(models.Model):
+    ROLE_CHOICES = (
+        ('Faculty', 'Faculty'),
+        ('Mentor', 'Mentor'),
+        ('Crew', 'Crew'),
+        ('Lead', 'Lead'),
+    )
+    name = models.CharField(max_length=200)
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES)
+    image = models.ImageField(upload_to='campus_sarthi/placement_family/', blank=True, null=True)
+    hierarchy_level = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['hierarchy_level', 'name']
+
+    def __str__(self):
+        return f"{self.name} - {self.role}"

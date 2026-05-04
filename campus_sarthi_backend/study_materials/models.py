@@ -1,6 +1,7 @@
 import os
 from django.db import models
 from django.conf import settings
+from cloudinary_storage.storage import RawMediaCloudinaryStorage
 
 
 class StudyMaterial(models.Model):
@@ -21,7 +22,7 @@ class StudyMaterial(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField()
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
-    file = models.FileField(upload_to='campus_sarthi/study_materials/')
+    file = models.FileField(upload_to='campus_sarthi/study_materials/', storage=RawMediaCloudinaryStorage())
     file_size = models.CharField(max_length=20, blank=True)
     file_type = models.CharField(max_length=10, blank=True)
     uploaded_by = models.ForeignKey(

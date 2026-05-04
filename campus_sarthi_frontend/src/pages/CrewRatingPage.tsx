@@ -1,165 +1,347 @@
-import React, { useEffect, useState } from 'react';
-import { Users, MessageSquare } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Star, Users, ArrowLeft, CheckCircle2, Crown } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { crewApi } from '../services/crewApi';
-import type { CrewMember, CrewRating } from '../types/crew';
-import StarRating from '../components/StarRating';
-import EmptyState from '../components/EmptyState';
-import { useToast } from '../context/ToastContext';
+import type { CrewMember } from '../types/crew';
+
+// Local interface for mock ratings
+interface LocalRating {
+  crewId: number;
+  stars: number;
+}
 
 export default function CrewRatingPage() {
   const [crew, setCrew] = useState<CrewMember[]>([]);
-  const [myRatings, setMyRatings] = useState<Record<number, CrewRating>>({});
+  const [localRatings, setLocalRatings] = useState<LocalRating[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [submitting, setSubmitting] = useState<number | null>(null);
-  const [selected, setSelected] = useState<{ crewId: number; stars: number; comment: string } | null>(null);
-  const { showToast } = useToast();
+  
+  // Form State
+  const [name, setName] = useState('');
+  const [year, setYear] = useState('');
+  const [branch, setBranch] = useState('');
+  const [selectedCrew, setSelectedCrew] = useState('');
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState('');
+  
+  // UI State
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   useEffect(() => {
-    Promise.all([crewApi.getAll(), crewApi.getMyRatings()])
-      .then(([crewRes, ratingsRes]) => {
-        setCrew(crewRes.data);
-        setMyRatings(ratingsRes.data);
-      })
+    // Check if they already rated this session
+    if (localStorage.getItem('crew_rated_session')) {
+      setHasSubmitted(true);
+    }
+
+    crewApi.getAllPublic()
+      .then((res) => setCrew(res.data))
       .catch(() => {})
       .finally(() => setIsLoading(false));
   }, []);
 
-  const startRating = (crewId: number) => {
-    const existing = myRatings[crewId];
-    setSelected({ crewId, stars: existing?.stars || 0, comment: existing?.comment || '' });
+  const isFormValid = name.trim() !== '' && year !== '' && branch.trim() !== '' && selectedCrew !== '' && rating > 0;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isFormValid || hasSubmitted) return;
+
+    // Save to local mock state
+    const newRating: LocalRating = {
+      crewId: parseInt(selectedCrew),
+      stars: rating,
+    };
+    setLocalRatings((prev) => [...prev, newRating]);
+
+    // Mark session
+    localStorage.setItem('crew_rated_session', 'true');
+    setHasSubmitted(true);
+    setShowSuccess(true);
+
+    // Reset form
+    setName('');
+    setYear('');
+    setBranch('');
+    setSelectedCrew('');
+    setRating(0);
+    setComment('');
+
+    // Hide success message after 4s
+    setTimeout(() => setShowSuccess(false), 4000);
   };
 
-  const submitRating = async () => {
-    if (!selected || selected.stars === 0) {
-      showToast('Please select a star rating.', 'error');
-      return;
+  // Helper to calculate displayed rating (real + mock)
+  const getDisplayStats = (member: CrewMember) => {
+    const memberMockRatings = localRatings.filter((r) => r.crewId === member.id);
+    if (memberMockRatings.length === 0) {
+      return { avg: member.avg_rating, total: member.total_ratings };
     }
-    setSubmitting(selected.crewId);
-    try {
-      const res = await crewApi.submitRating(selected.crewId, {
-        stars: selected.stars,
-        comment: selected.comment,
-      });
-      setCrew((prev) => prev.map((c) => c.id === selected.crewId ? res.data : c));
-      setMyRatings((prev) => ({
-        ...prev,
-        [selected.crewId]: { stars: selected.stars, comment: selected.comment, updated_at: new Date().toISOString() },
-      }));
-      setSelected(null);
-      showToast('Rating submitted!', 'success');
-    } catch {
-      showToast('Failed to submit rating.', 'error');
-    } finally {
-      setSubmitting(null);
-    }
+    
+    const totalStars = (member.avg_rating * member.total_ratings) + memberMockRatings.reduce((sum, r) => sum + r.stars, 0);
+    const totalCount = member.total_ratings + memberMockRatings.length;
+    return {
+      avg: totalStars / totalCount,
+      total: totalCount
+    };
   };
 
   return (
-    <div className="max-w-5xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-heading">Crew Rating</h1>
-        <p className="text-sm text-muted mt-0.5">Rate your placement coordinators to help them improve</p>
-      </div>
+    <div className="min-h-screen relative overflow-hidden" style={{ background: '#0B0B0B' }}>
+      {/* Background glow effects */}
+      <div className="absolute top-0 inset-x-0 h-[500px] pointer-events-none" style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(255,215,0,0.08) 0%, transparent 70%)' }} />
+      
+      <div className="max-w-4xl mx-auto px-6 py-12 relative z-10">
+        <Link to="/" className="inline-flex items-center gap-2 text-sm font-medium mb-8 transition-colors duration-200" style={{ color: '#6B7280' }} onMouseEnter={e => e.currentTarget.style.color = '#FFD700'} onMouseLeave={e => e.currentTarget.style.color = '#6B7280'}>
+          <ArrowLeft size={16} /> Back to Home
+        </Link>
 
-      {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="card p-6 animate-pulse space-y-3">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-full bg-border" />
-                <div className="space-y-2 flex-1">
-                  <div className="h-4 bg-border rounded w-2/3" />
-                  <div className="h-3 bg-border rounded w-1/2" />
-                </div>
-              </div>
-            </div>
-          ))}
+        <div className="text-center mb-12">
+          <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-4 tracking-tight">
+            Rate Our <span className="text-transparent bg-clip-text" style={{ backgroundImage: 'linear-gradient(135deg, #FFD700, #FFA500)' }}>Crew</span>
+          </h1>
+          <p className="text-base max-w-lg mx-auto" style={{ color: '#9CA3AF' }}>
+            Help us improve the placement experience by leaving anonymous feedback for your coordinators.
+          </p>
         </div>
-      ) : crew.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {crew.map((member) => {
-            const myRating = myRatings[member.id];
-            const isSelected = selected?.crewId === member.id;
 
-            return (
-              <div key={member.id} className="card p-6">
-                {/* Member Info */}
-                <div className="flex items-start gap-4 mb-4">
-                  <div className="w-14 h-14 rounded-full bg-primary-light text-primary font-bold text-lg flex items-center justify-center flex-shrink-0">
-                    {member.user.full_name.split(' ').map((n) => n[0]).slice(0, 2).join('')}
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-heading text-base">{member.user.full_name}</h3>
-                    <p className="text-xs text-muted">{member.title}</p>
-                    <p className="text-xs text-muted mt-0.5">{member.department}</p>
-                  </div>
+        {/* Form Section */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-2xl mx-auto rounded-3xl p-8 md:p-10 mb-16"
+          style={{
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid rgba(255,215,0,0.15)',
+            backdropFilter: 'blur(20px)',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
+          }}
+        >
+          <AnimatePresence mode="wait">
+            {showSuccess ? (
+              <motion.div 
+                key="success"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex flex-col items-center justify-center py-12 text-center"
+              >
+                <div className="w-16 h-16 rounded-full mb-6 flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.1)', color: '#10B981' }}>
+                  <CheckCircle2 size={32} />
                 </div>
-
-                {/* Bio */}
-                <p className="text-xs text-muted leading-relaxed mb-4 line-clamp-3">{member.bio}</p>
-
-                {/* Overall Rating */}
-                <div className="flex items-center gap-3 mb-4 p-3 bg-surface rounded-lg border border-border">
-                  <StarRating value={Math.round(member.avg_rating)} readonly size={16} />
-                  <span className="text-sm font-medium text-body">{member.avg_rating.toFixed(1)}</span>
-                  <span className="text-xs text-muted">({member.total_ratings} ratings)</span>
-                </div>
-
-                {/* My Rating */}
-                {myRating && !isSelected && (
-                  <div className="text-xs text-muted mb-3 flex items-center gap-2">
-                    <StarRating value={myRating.stars} readonly size={13} />
-                    <span>Your rating: {myRating.stars}/5</span>
+                <h3 className="text-xl font-bold text-white mb-2">Thank you!</h3>
+                <p style={{ color: '#9CA3AF' }}>Your feedback has been submitted successfully.</p>
+              </motion.div>
+            ) : (
+              <motion.form key="form" onSubmit={handleSubmit} className="space-y-6" exit={{ opacity: 0 }}>
+                {hasSubmitted && (
+                  <div className="p-4 rounded-xl mb-6 text-sm" style={{ background: 'rgba(255,215,0,0.1)', border: '1px solid rgba(255,215,0,0.2)', color: '#FFD700' }}>
+                    You have already submitted a rating during this session.
                   </div>
                 )}
 
-                {/* Rating Form */}
-                {isSelected ? (
-                  <div className="space-y-3 border-t border-border pt-4">
-                    <div>
-                      <p className="text-xs font-medium text-body mb-2">Your Rating</p>
-                      <StarRating
-                        value={selected.stars}
-                        onChange={(v) => setSelected({ ...selected, stars: v })}
-                      />
-                    </div>
-                    <textarea
-                      className="form-input text-xs resize-none"
-                      rows={2}
-                      placeholder="Optional: share your feedback..."
-                      value={selected.comment}
-                      onChange={(e) => setSelected({ ...selected, comment: e.target.value })}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-xs font-semibold mb-2" style={{ color: '#9CA3AF' }}>Full Name</label>
+                    <input
+                      type="text"
+                      className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 outline-none transition-all"
+                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                      placeholder="Your Name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      onFocus={(e) => e.currentTarget.style.borderColor = 'rgba(255,215,0,0.4)'}
+                      onBlur={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'}
+                      disabled={hasSubmitted}
                     />
-                    <div className="flex gap-2">
-                      <button onClick={() => setSelected(null)} className="btn-secondary flex-1 text-xs py-1.5">Cancel</button>
-                      <button
-                        onClick={submitRating}
-                        disabled={submitting === member.id}
-                        className="btn-primary flex-1 text-xs py-1.5 flex items-center justify-center gap-1.5 disabled:opacity-60"
-                      >
-                        {submitting === member.id
-                          ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          : null}
-                        Submit
-                      </button>
-                    </div>
                   </div>
-                ) : (
-                  <button
-                    onClick={() => startRating(member.id)}
-                    className="btn-ghost w-full text-xs flex items-center justify-center gap-1.5 py-2 border border-border hover:border-primary rounded-lg"
-                  >
-                    <MessageSquare size={13} />
-                    {myRating ? 'Update Rating' : 'Rate this Crew Member'}
-                  </button>
-                )}
-              </div>
-            );
-          })}
+                  <div>
+                    <label className="block text-xs font-semibold mb-2" style={{ color: '#9CA3AF' }}>Year</label>
+                    <select
+                      className="w-full rounded-xl px-4 py-3 text-sm text-white outline-none transition-all appearance-none"
+                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                      value={year}
+                      onChange={(e) => setYear(e.target.value)}
+                      onFocus={(e) => e.currentTarget.style.borderColor = 'rgba(255,215,0,0.4)'}
+                      onBlur={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'}
+                      disabled={hasSubmitted}
+                    >
+                      <option value="" disabled style={{ color: '#6B7280', background: '#0B0B0B' }}>Select Year</option>
+                      <option value="1st" style={{ background: '#0B0B0B' }}>1st Year</option>
+                      <option value="2nd" style={{ background: '#0B0B0B' }}>2nd Year</option>
+                      <option value="3rd" style={{ background: '#0B0B0B' }}>3rd Year</option>
+                      <option value="4th" style={{ background: '#0B0B0B' }}>4th Year</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-xs font-semibold mb-2" style={{ color: '#9CA3AF' }}>Branch</label>
+                    <input
+                      type="text"
+                      className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 outline-none transition-all"
+                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                      placeholder="e.g. Computer Science"
+                      value={branch}
+                      onChange={(e) => setBranch(e.target.value)}
+                      onFocus={(e) => e.currentTarget.style.borderColor = 'rgba(255,215,0,0.4)'}
+                      onBlur={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'}
+                      disabled={hasSubmitted}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold mb-2" style={{ color: '#9CA3AF' }}>Crew Member</label>
+                    <select
+                      className="w-full rounded-xl px-4 py-3 text-sm text-white outline-none transition-all appearance-none"
+                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                      value={selectedCrew}
+                      onChange={(e) => setSelectedCrew(e.target.value)}
+                      onFocus={(e) => e.currentTarget.style.borderColor = 'rgba(255,215,0,0.4)'}
+                      onBlur={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'}
+                      disabled={hasSubmitted || isLoading}
+                    >
+                      <option value="" disabled style={{ color: '#6B7280', background: '#0B0B0B' }}>
+                        {isLoading ? 'Loading crew...' : 'Select Crew Member'}
+                      </option>
+                      {crew.map(member => (
+                        <option key={member.id} value={member.id} style={{ background: '#0B0B0B' }}>
+                          {member.user.full_name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold mb-3" style={{ color: '#9CA3AF' }}>Rating</label>
+                  <div className="flex items-center gap-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setRating(star)}
+                        disabled={hasSubmitted}
+                        className="p-1 transition-transform hover:scale-110 disabled:hover:scale-100"
+                      >
+                        <Star
+                          size={28}
+                          fill={star <= rating ? '#FFD700' : 'transparent'}
+                          color={star <= rating ? '#FFD700' : '#4B5563'}
+                          strokeWidth={1.5}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold mb-2" style={{ color: '#9CA3AF' }}>Comment (Optional)</label>
+                  <textarea
+                    className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 outline-none transition-all resize-none"
+                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                    placeholder="Share your experience..."
+                    rows={3}
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    onFocus={(e) => e.currentTarget.style.borderColor = 'rgba(255,215,0,0.4)'}
+                    onBlur={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'}
+                    disabled={hasSubmitted}
+                  />
+                </div>
+
+                <motion.button
+                  type="submit"
+                  disabled={!isFormValid || hasSubmitted}
+                  whileHover={(!isFormValid || hasSubmitted) ? {} : { scale: 1.02 }}
+                  whileTap={(!isFormValid || hasSubmitted) ? {} : { scale: 0.98 }}
+                  className="w-full py-3.5 rounded-xl text-sm font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    background: 'linear-gradient(135deg, #FFD700, #FFA500)',
+                    color: '#0B0B0B',
+                    boxShadow: (!isFormValid || hasSubmitted) ? 'none' : '0 0 20px rgba(255,215,0,0.3)',
+                  }}
+                >
+                  Submit Rating
+                </motion.button>
+              </motion.form>
+            )}
+          </AnimatePresence>
+        </motion.div>
+
+        {/* Display Section */}
+        <div>
+          <h2 className="text-xl font-bold text-white mb-6 text-center">Crew Members</h2>
+          {isLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="rounded-2xl p-6 h-32 animate-pulse" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }} />
+              ))}
+            </div>
+          ) : crew.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...crew]
+                .sort((a, b) => a.user.full_name.localeCompare(b.user.full_name))
+                .map((member) => {
+                  const stats = getDisplayStats(member);
+                  
+                  // Find max rating globally to highlight
+                  const maxRating = Math.max(...crew.map(c => getDisplayStats(c).avg));
+                  const isTopRated = stats.avg === maxRating && maxRating > 0;
+
+                  return (
+                    <motion.div
+                      key={member.id}
+                      whileHover={{ y: -4 }}
+                      className="relative rounded-2xl p-6 flex flex-col items-center text-center transition-colors"
+                      style={{
+                        background: isTopRated ? 'rgba(255,215,0,0.05)' : 'rgba(255,255,255,0.03)',
+                        border: isTopRated ? '1px solid rgba(255,215,0,0.5)' : '1px solid rgba(255,255,255,0.08)',
+                        boxShadow: isTopRated ? '0 0 24px rgba(255,215,0,0.25)' : 'none',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isTopRated) e.currentTarget.style.borderColor = 'rgba(255,215,0,0.3)';
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isTopRated) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+                      }}
+                    >
+                      {isTopRated && (
+                        <div
+                          className="absolute -top-3 -right-3 w-8 h-8 rounded-full flex items-center justify-center shadow-lg"
+                          style={{ background: 'linear-gradient(135deg, #FFD700, #FFA500)', color: '#0B0B0B' }}
+                          title="Highest Rated Crew Member"
+                        >
+                          <Crown size={16} />
+                        </div>
+                      )}
+                      
+                      <div className="w-16 h-16 rounded-full mb-4 overflow-hidden" style={{ border: isTopRated ? '2px solid #FFD700' : '1px solid rgba(255,215,0,0.2)' }}>
+                        <img
+                          src={member.user.profile_photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.user.full_name)}&background=FFD700&color=0B0B0B&size=128&bold=true`}
+                          alt={member.user.full_name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <h3 className="font-bold text-white text-base mb-1">{member.user.full_name}</h3>
+                      <p className="text-xs mb-4" style={{ color: '#9CA3AF' }}>{member.title}</p>
+                      
+                      <div className="flex items-center gap-1.5 mt-auto">
+                        <Star size={16} fill="#FFD700" color="#FFD700" />
+                        <span className="font-bold text-white">{stats.avg.toFixed(1)}</span>
+                        <span className="text-xs" style={{ color: '#6B7280' }}>({stats.total} reviews)</span>
+                      </div>
+                    </motion.div>
+                  );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-12" style={{ color: '#6B7280' }}>
+              <Users size={48} className="mx-auto mb-4 opacity-50" />
+              <p>No crew members found.</p>
+            </div>
+          )}
         </div>
-      ) : (
-        <EmptyState icon={<Users size={48} />} title="No crew members" subtitle="Crew members will appear here once added." />
-      )}
+      </div>
     </div>
   );
 }

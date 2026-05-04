@@ -72,8 +72,8 @@ export default function CompanyWizard({ onClose, onSuccess, initialDraftData }: 
               onClick={() => wizard.updateField('domain', d.id)}
               className={`p-4 rounded-xl border-2 cursor-pointer transition-all relative ${
                 formData.domain === d.id 
-                  ? 'border-primary bg-indigo-50/50' 
-                  : 'border-border bg-white hover:border-primary/50'
+                  ? 'border-primary bg-primary/10' 
+                  : 'border-border bg-surface hover:border-primary/50'
               }`}
             >
               <div className="text-2xl mb-1">{d.icon}</div>
@@ -184,7 +184,7 @@ export default function CompanyWizard({ onClose, onSuccess, initialDraftData }: 
 
   const renderStep2 = () => (
     <div className="space-y-8 animate-in slide-in-from-right duration-300">
-      <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+      <div className="flex items-center gap-3 p-3 bg-surface border border-border rounded-lg">
         <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold ${getDomainColor(formData.domain)}`}>
           {getCompanyInitial(formData.name)}
         </div>
@@ -202,7 +202,7 @@ export default function CompanyWizard({ onClose, onSuccess, initialDraftData }: 
         <div className="space-y-3">
           {formData.gd_questions.map((q, i) => (
             <div key={i} className="flex gap-3">
-              <div className="w-8 h-8 rounded-full bg-indigo-50 text-primary text-xs font-bold flex items-center justify-center shrink-0 mt-1">
+              <div className="w-8 h-8 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0 mt-1">
                 {i + 1}
               </div>
               <input
@@ -215,7 +215,7 @@ export default function CompanyWizard({ onClose, onSuccess, initialDraftData }: 
               {formData.gd_questions.length > 1 && (
                 <button 
                   onClick={() => wizard.removeListItem('gd_questions', i)}
-                  className="p-2 text-danger hover:bg-red-50 rounded-lg"
+                  className="p-2 text-danger hover:bg-danger/10 rounded-lg"
                 >
                   <Trash2 className="w-5 h-5" />
                 </button>
@@ -225,7 +225,7 @@ export default function CompanyWizard({ onClose, onSuccess, initialDraftData }: 
           {formData.gd_questions.length < 20 && (
             <button
               onClick={() => wizard.addListItem('gd_questions')}
-              className="w-full py-2 border-2 border-dashed border-border rounded-xl text-primary font-medium text-sm flex items-center justify-center gap-2 hover:bg-indigo-50/50 transition-colors"
+              className="w-full py-2 border-2 border-dashed border-border rounded-xl text-primary font-medium text-sm flex items-center justify-center gap-2 hover:bg-primary/5 transition-colors"
             >
               <Plus className="w-4 h-4" /> Add GD Question
             </button>
@@ -242,7 +242,7 @@ export default function CompanyWizard({ onClose, onSuccess, initialDraftData }: 
         <div className="space-y-3">
           {formData.interview_questions.map((q, i) => (
             <div key={i} className="flex gap-3">
-              <div className="w-8 h-8 rounded-full bg-indigo-50 text-primary text-xs font-bold flex items-center justify-center shrink-0 mt-1">
+              <div className="w-8 h-8 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0 mt-1">
                 {i + 1}
               </div>
               <input
@@ -255,7 +255,7 @@ export default function CompanyWizard({ onClose, onSuccess, initialDraftData }: 
               {formData.interview_questions.length > 1 && (
                 <button 
                   onClick={() => wizard.removeListItem('interview_questions', i)}
-                  className="p-2 text-danger hover:bg-red-50 rounded-lg"
+                  className="p-2 text-danger hover:bg-danger/10 rounded-lg"
                 >
                   <Trash2 className="w-5 h-5" />
                 </button>
@@ -265,7 +265,7 @@ export default function CompanyWizard({ onClose, onSuccess, initialDraftData }: 
           {formData.interview_questions.length < 30 && (
             <button
               onClick={() => wizard.addListItem('interview_questions')}
-              className="w-full py-2 border-2 border-dashed border-border rounded-xl text-primary font-medium text-sm flex items-center justify-center gap-2 hover:bg-indigo-50/50 transition-colors"
+              className="w-full py-2 border-2 border-dashed border-border rounded-xl text-primary font-medium text-sm flex items-center justify-center gap-2 hover:bg-primary/5 transition-colors"
             >
               <Plus className="w-4 h-4" /> Add Interview Question
             </button>
@@ -278,7 +278,7 @@ export default function CompanyWizard({ onClose, onSuccess, initialDraftData }: 
 
   const renderStep3 = () => (
     <div className="space-y-8 animate-in slide-in-from-right duration-300">
-      <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+      <div className="flex items-center gap-3 p-3 bg-surface border border-border rounded-lg">
         <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold ${getDomainColor(formData.domain)}`}>
           {getCompanyInitial(formData.name)}
         </div>
@@ -314,7 +314,7 @@ export default function CompanyWizard({ onClose, onSuccess, initialDraftData }: 
         </div>
         <div className="flex flex-wrap gap-2">
           {formData.tech_requirements.map((skill) => (
-            <span key={skill} className="bg-indigo-50 text-primary px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2">
+            <span key={skill} className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2 border border-primary/20">
               {skill}
               <button onClick={() => wizard.removeTechRequirement(skill)} className="hover:text-danger">
                 <X className="w-3 h-3" />
@@ -347,7 +347,7 @@ export default function CompanyWizard({ onClose, onSuccess, initialDraftData }: 
         <div className="space-y-3">
           {formData.selection_rounds.map((r, i) => (
             <div key={i} className="flex gap-3">
-              <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 text-xs font-bold flex items-center justify-center shrink-0 mt-1">
+              <div className="w-8 h-8 rounded-full bg-surface border border-border text-muted text-xs font-bold flex items-center justify-center shrink-0 mt-1">
                 {i + 1}
               </div>
               <input
@@ -359,7 +359,7 @@ export default function CompanyWizard({ onClose, onSuccess, initialDraftData }: 
               />
               <button 
                 onClick={() => wizard.removeListItem('selection_rounds', i)}
-                className="p-2 text-danger hover:bg-red-50 rounded-lg"
+                className="p-2 text-danger hover:bg-danger/10 rounded-lg"
               >
                 <Trash2 className="w-5 h-5" />
               </button>
@@ -369,7 +369,7 @@ export default function CompanyWizard({ onClose, onSuccess, initialDraftData }: 
           <div className="space-y-3">
             <button
               onClick={() => wizard.addListItem('selection_rounds')}
-              className="w-full py-2 border-2 border-dashed border-border rounded-xl text-primary font-medium text-sm flex items-center justify-center gap-2 hover:bg-indigo-50/50 transition-colors"
+              className="w-full py-2 border-2 border-dashed border-border rounded-xl text-primary font-medium text-sm flex items-center justify-center gap-2 hover:bg-primary/5 transition-colors"
             >
               <Plus className="w-4 h-4" /> Add Round
             </button>
@@ -383,7 +383,7 @@ export default function CompanyWizard({ onClose, onSuccess, initialDraftData }: 
                     wizard.updateField('selection_rounds', newList);
                   }}
                   disabled={formData.selection_rounds.includes(round)}
-                  className="px-3 py-1 rounded-full border border-border text-[10px] uppercase tracking-wider font-bold text-muted hover:border-primary hover:text-primary disabled:opacity-50 disabled:bg-slate-50 transition-colors"
+                  className="px-3 py-1 rounded-full border border-border text-[10px] uppercase tracking-wider font-bold text-muted hover:border-primary hover:text-primary disabled:opacity-50 disabled:bg-surface transition-colors"
                 >
                   + {round}
                 </button>
@@ -397,20 +397,20 @@ export default function CompanyWizard({ onClose, onSuccess, initialDraftData }: 
   );
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-surface border border-border rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-xl animate-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-slate-100 z-10">
+        <div className="sticky top-0 bg-surface border-b border-border z-10">
           <div className="px-8 py-4 flex items-center justify-between">
             <h2 className="text-xl font-bold text-heading">Add New Company</h2>
-            <button onClick={handleClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-              <X className="w-6 h-6 text-muted" />
+            <button onClick={handleClose} className="p-2 hover:bg-white/5 rounded-full transition-colors text-muted hover:text-heading">
+              <X className="w-6 h-6" />
             </button>
           </div>
           
           {/* Progress Bar */}
           <div className="px-12 pb-6 relative">
-            <div className="absolute top-4 left-16 right-16 h-0.5 bg-slate-100 -z-0">
+            <div className="absolute top-4 left-16 right-16 h-0.5 bg-border -z-0">
               <div 
                 className="h-full bg-primary transition-all duration-500" 
                 style={{ width: currentStep === 1 ? '0%' : currentStep === 2 ? '50%' : '100%' }}
@@ -422,13 +422,13 @@ export default function CompanyWizard({ onClose, onSuccess, initialDraftData }: 
                 <div key={step} className="flex flex-col items-center gap-1.5">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all duration-300 ${
                     currentStep > step ? 'bg-primary border-primary text-white' :
-                    currentStep === step ? 'bg-white border-primary text-primary' :
-                    'bg-white border-slate-200 text-slate-400'
+                    currentStep === step ? 'bg-surface border-primary text-primary' :
+                    'bg-surface border-border text-muted'
                   }`}>
                     {currentStep > step ? <Check className="w-4 h-4" /> : step}
                   </div>
                   <span className={`text-[10px] font-bold uppercase tracking-wider ${
-                    currentStep === step ? 'text-primary' : 'text-slate-400'
+                    currentStep === step ? 'text-primary' : 'text-muted'
                   }`}>
                     Step {step}
                   </span>
@@ -446,19 +446,19 @@ export default function CompanyWizard({ onClose, onSuccess, initialDraftData }: 
         </div>
 
         {/* Footer */}
-        <div className="sticky bottom-0 bg-white border-t border-slate-100 px-8 py-4 flex items-center justify-between">
+        <div className="sticky bottom-0 bg-surface border-t border-border px-8 py-4 flex items-center justify-between">
           <div className="flex gap-3">
             {currentStep > 1 && (
               <button 
                 onClick={wizard.goBack}
-                className="btn border-border hover:bg-slate-50 flex items-center gap-2"
+                className="btn-secondary flex items-center gap-2"
               >
                 <ArrowLeft className="w-4 h-4" /> Back
               </button>
             )}
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <button
               onClick={wizard.saveDraft}
               disabled={isSavingDraft || !formData.name}
@@ -470,7 +470,7 @@ export default function CompanyWizard({ onClose, onSuccess, initialDraftData }: 
             {currentStep < 3 ? (
               <button 
                 onClick={wizard.goNext}
-                className="btn btn-primary flex items-center gap-2 px-8"
+                className="btn-primary flex items-center gap-2 px-8"
               >
                 Next <ArrowRight className="w-4 h-4" />
               </button>
@@ -478,7 +478,7 @@ export default function CompanyWizard({ onClose, onSuccess, initialDraftData }: 
               <button 
                 onClick={wizard.submitForm}
                 disabled={isSubmitting}
-                className="btn btn-primary flex items-center gap-2 px-8"
+                className="btn-primary flex items-center gap-2 px-8"
               >
                 {isSubmitting ? (
                   <>
