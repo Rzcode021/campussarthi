@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🎓 Campus Sarthi — Placement Portal
 
 A full-stack college placement management system built with **Django REST Framework** (backend) and **React + TypeScript** (frontend). It enables college placement teams to manage company data, study resources, news, and student information through a structured multi-role workflow.
@@ -559,3 +560,7 @@ MIT License — feel free to use this project for your college or fork it for yo
 ---
 
 *Built with ❤️ for college placement cells across India.*
+=======
+# campussarthi
+Placement Portal
+>>>>>>> bdda50e9229ded28bb15e012f4d85503b54dd5e6
