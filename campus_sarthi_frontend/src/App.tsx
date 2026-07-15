@@ -7,6 +7,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
 import MainLayout from './layouts/MainLayout';
 import AuthLayout from './layouts/AuthLayout';
+import PublicLayout from './layouts/PublicLayout';
 
 // Critical path — eager load
 import LandingPage from './pages/LandingPage';
@@ -25,13 +26,16 @@ const ProfilePage        = lazy(() => import('./pages/ProfilePage'));
 const CrewRatingPage     = lazy(() => import('./pages/CrewRatingPage'));
 const MyUploadsPage      = lazy(() => import('./pages/MyUploadsPage'));
 const AdminPage          = lazy(() => import('./pages/AdminPage'));
+const EventsPage         = lazy(() => import('./pages/EventsPage'));
+const EventDetailPage    = lazy(() => import('./pages/EventDetailPage'));
+const BookmarksPage      = lazy(() => import('./pages/BookmarksPage'));
 
 function PageLoader() {
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
       <div
         className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin"
-        style={{ borderColor: '#6366F1', borderTopColor: 'transparent' }}
+        style={{ borderColor: '#FFD700', borderTopColor: 'transparent' }}
       />
     </div>
   );
@@ -45,15 +49,21 @@ export default function App() {
           <BookmarkProvider>
             <Suspense fallback={<PageLoader />}>
               <Routes>
-                {/* Public */}
+                {/* ── Fully Public ─────────────────────────────── */}
                 <Route path="/" element={<LandingPage />} />
-                <Route path="/crew-rating" element={<CrewRatingPage />} />
                 <Route element={<AuthLayout />}>
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/request-access" element={<RequestAccessPage />} />
                 </Route>
 
-                {/* Protected */}
+                {/* Public pages with minimal header — no login required */}
+                <Route element={<PublicLayout />}>
+                  <Route path="/events" element={<EventsPage />} />
+                  <Route path="/events/:id" element={<EventDetailPage />} />
+                  <Route path="/crew-rating" element={<CrewRatingPage />} />
+                </Route>
+
+                {/* ── Protected (requires login) ────────────────── */}
                 <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
                   <Route path="/dashboard" element={<DashboardPage />} />
                   <Route path="/companies" element={<CompaniesPage />} />
@@ -64,9 +74,10 @@ export default function App() {
                   <Route path="/news" element={<NewsPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
                   <Route path="/my-uploads" element={<MyUploadsPage />} />
+                  <Route path="/bookmarks" element={<BookmarksPage />} />
                 </Route>
 
-                {/* Admin */}
+                {/* ── Admin ─────────────────────────────────────── */}
                 <Route path="/admin" element={<AdminRoute><MainLayout /></AdminRoute>}>
                   <Route index element={<AdminPage />} />
                 </Route>

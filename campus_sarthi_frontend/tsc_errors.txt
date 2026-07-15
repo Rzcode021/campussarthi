@@ -1,0 +1,27 @@
+﻿src/components/AdminContributions.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/components/AdminContributions.tsx(2,1): error TS6192: All imports in import declaration are unused.
+src/components/AdminEvents.tsx(2,18): error TS6133: 'AnimatePresence' is declared but its value is never read.
+src/components/AdminEvents.tsx(3,69): error TS6133: 'Sparkles' is declared but its value is never read.
+src/components/BookmarkButton.tsx(1,1): error TS6133: 'React' is declared but its value is never read.
+src/components/CompanyWizard.tsx(2,57): error TS6133: 'Info' is declared but its value is never read.
+src/components/ContributionModal.tsx(2,18): error TS6133: 'AnimatePresence' is declared but its value is never read.
+src/components/ContributionModal.tsx(3,19): error TS6133: 'Sparkles' is declared but its value is never read.
+src/components/DocumentCard.tsx(1,1): error TS6133: 'React' is declared but its value is never read.
+src/components/PlacementFamilySection.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/context/AuthContext.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/context/BookmarkContext.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/context/ToastContext.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/pages/BookmarksPage.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/pages/BookmarksPage.tsx(5,23): error TS1484: 'Bookmark' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/pages/BookmarksPage.tsx(7,7): error TS6133: 'EASE' is declared but its value is never read.
+src/pages/BookmarksPage.tsx(12,10): error TS6133: 'isLoading' is declared but its value is never read.
+src/pages/CompaniesPage.tsx(1,10): error TS6133: 'useEffect' is declared but its value is never read.
+src/pages/CompaniesPage.tsx(1,31): error TS6133: 'memo' is declared but its value is never read.
+src/pages/CompaniesPage.tsx(4,1): error TS6133: 'companiesApi' is declared but its value is never read.
+src/pages/CompaniesPage.tsx(6,1): error TS6133: 'Company' is declared but its value is never read.
+src/pages/CompanyDetailPage.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/pages/CompanyDetailPage.tsx(56,20): error TS2345: Argument of type 'Company' is not assignable to parameter of type 'SetStateAction<Company | null>'.
+  Type 'import("C:/Users/saksh/.antigravity/campussarthi/campus_sarthi_frontend/src/store/useAppStore").Company' is not assignable to type 'import("C:/Users/saksh/.antigravity/campussarthi/campus_sarthi_frontend/src/types/company").Company'.
+    Types of property 'logo' are incompatible.
+      Type 'string | undefined' is not assignable to type 'string | null'.
+        Type 'undefined' is not assignable to type 'string | null'.

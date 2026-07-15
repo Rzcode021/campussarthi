@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Building2, FileText, Users, Newspaper,
-  ArrowRight, Sparkles, Shield, ChevronDown, Star,
+  ArrowRight, Sparkles, Shield, ChevronDown, Star, Calendar
 } from 'lucide-react';
 import PlacementFamilySection from '../components/PlacementFamilySection';
 
@@ -231,6 +231,29 @@ export default function LandingPage() {
             <OutlineButton to="/companies">
               <Building2 size={15} /> Explore Companies
             </OutlineButton>
+            <Link
+              to="/events"
+              className="inline-flex items-center justify-center gap-2 px-7 py-3 rounded-full text-sm font-bold transition-all duration-300"
+              style={{
+                background: 'rgba(255,255,255,0.03)',
+                color: '#60A5FA',
+                border: '1px solid rgba(96,165,250,0.3)',
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px) scale(1.02)';
+                (e.currentTarget as HTMLElement).style.background = 'rgba(96,165,250,0.08)';
+                (e.currentTarget as HTMLElement).style.borderColor = 'rgba(96,165,250,0.6)';
+                (e.currentTarget as HTMLElement).style.boxShadow = '0 0 20px rgba(96,165,250,0.2)';
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.transform = 'translateY(0) scale(1)';
+                (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.03)';
+                (e.currentTarget as HTMLElement).style.borderColor = 'rgba(96,165,250,0.3)';
+                (e.currentTarget as HTMLElement).style.boxShadow = 'none';
+              }}
+            >
+              <Calendar size={16} /> Crew Events
+            </Link>
             <Link
               to="/crew-rating"
               className="inline-flex items-center justify-center gap-2 px-7 py-3 rounded-full text-sm font-bold transition-all duration-300"

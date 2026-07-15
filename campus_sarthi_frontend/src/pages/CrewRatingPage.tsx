@@ -4,16 +4,12 @@ import { Star, Users, ArrowLeft, CheckCircle2, Crown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { crewApi } from '../services/crewApi';
 import type { CrewMember } from '../types/crew';
-
-// Local interface for mock ratings
-interface LocalRating {
-  crewId: number;
-  stars: number;
-}
+import { useAppStore } from '../store/useAppStore';
 
 export default function CrewRatingPage() {
   const [crew, setCrew] = useState<CrewMember[]>([]);
-  const [localRatings, setLocalRatings] = useState<LocalRating[]>([]);
+  const storeRatings = useAppStore((state) => state.crewRatings);
+  const addCrewRating = useAppStore((state) => state.addCrewRating);
   const [isLoading, setIsLoading] = useState(true);
   
   // Form State
@@ -25,15 +21,9 @@ export default function CrewRatingPage() {
   const [comment, setComment] = useState('');
   
   // UI State
-  const [hasSubmitted, setHasSubmitted] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
   useEffect(() => {
-    // Check if they already rated this session
-    if (localStorage.getItem('crew_rated_session')) {
-      setHasSubmitted(true);
-    }
-
     crewApi.getAllPublic()
       .then((res) => setCrew(res.data))
       .catch(() => {})
@@ -44,21 +34,24 @@ export default function CrewRatingPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isFormValid || hasSubmitted) return;
+    if (!isFormValid) return;
 
-    // Save to local mock state
-    const newRating: LocalRating = {
-      crewId: parseInt(selectedCrew),
-      stars: rating,
+    const crewId = parseInt(selectedCrew);
+    const selectedMember = crew.find(c => c.id === crewId);
+
+    const newRating = {
+      id: Date.now().toString(),
+      crewMemberId: crewId,
+      crewMemberName: selectedMember?.user?.full_name || 'Unknown',
+      rating: rating,
+      feedback: comment,
+      submittedBy: name,
+      timestamp: new Date().toISOString()
     };
-    setLocalRatings((prev) => [...prev, newRating]);
 
-    // Mark session
-    localStorage.setItem('crew_rated_session', 'true');
-    setHasSubmitted(true);
+    addCrewRating(newRating);
     setShowSuccess(true);
-
-    // Reset form
+    
     setName('');
     setYear('');
     setBranch('');
@@ -66,19 +59,18 @@ export default function CrewRatingPage() {
     setRating(0);
     setComment('');
 
-    // Hide success message after 4s
     setTimeout(() => setShowSuccess(false), 4000);
   };
 
-  // Helper to calculate displayed rating (real + mock)
+  // Helper to calculate displayed rating
   const getDisplayStats = (member: CrewMember) => {
-    const memberMockRatings = localRatings.filter((r) => r.crewId === member.id);
-    if (memberMockRatings.length === 0) {
-      return { avg: member.avg_rating, total: member.total_ratings };
+    const memberStoreRatings = storeRatings.filter((r) => r.crewMemberId === member.id);
+    if (memberStoreRatings.length === 0) {
+      return { avg: member.avg_rating || 0, total: member.total_ratings || 0 };
     }
     
-    const totalStars = (member.avg_rating * member.total_ratings) + memberMockRatings.reduce((sum, r) => sum + r.stars, 0);
-    const totalCount = member.total_ratings + memberMockRatings.length;
+    const totalStars = (member.avg_rating * member.total_ratings) + memberStoreRatings.reduce((sum, r) => sum + r.rating, 0);
+    const totalCount = member.total_ratings + memberStoreRatings.length;
     return {
       avg: totalStars / totalCount,
       total: totalCount
@@ -133,12 +125,6 @@ export default function CrewRatingPage() {
               </motion.div>
             ) : (
               <motion.form key="form" onSubmit={handleSubmit} className="space-y-6" exit={{ opacity: 0 }}>
-                {hasSubmitted && (
-                  <div className="p-4 rounded-xl mb-6 text-sm" style={{ background: 'rgba(255,215,0,0.1)', border: '1px solid rgba(255,215,0,0.2)', color: '#FFD700' }}>
-                    You have already submitted a rating during this session.
-                  </div>
-                )}
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-xs font-semibold mb-2" style={{ color: '#9CA3AF' }}>Full Name</label>
@@ -151,7 +137,7 @@ export default function CrewRatingPage() {
                       onChange={(e) => setName(e.target.value)}
                       onFocus={(e) => e.currentTarget.style.borderColor = 'rgba(255,215,0,0.4)'}
                       onBlur={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'}
-                      disabled={hasSubmitted}
+                      disabled={isLoading}
                     />
                   </div>
                   <div>
@@ -163,13 +149,13 @@ export default function CrewRatingPage() {
                       onChange={(e) => setYear(e.target.value)}
                       onFocus={(e) => e.currentTarget.style.borderColor = 'rgba(255,215,0,0.4)'}
                       onBlur={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'}
-                      disabled={hasSubmitted}
+                      disabled={isLoading}
                     >
                       <option value="" disabled style={{ color: '#6B7280', background: '#0B0B0B' }}>Select Year</option>
-                      <option value="1st" style={{ background: '#0B0B0B' }}>1st Year</option>
-                      <option value="2nd" style={{ background: '#0B0B0B' }}>2nd Year</option>
-                      <option value="3rd" style={{ background: '#0B0B0B' }}>3rd Year</option>
-                      <option value="4th" style={{ background: '#0B0B0B' }}>4th Year</option>
+                      <option value="1" style={{ background: '#0B0B0B' }}>1st Year</option>
+                      <option value="2" style={{ background: '#0B0B0B' }}>2nd Year</option>
+                      <option value="3" style={{ background: '#0B0B0B' }}>3rd Year</option>
+                      <option value="4" style={{ background: '#0B0B0B' }}>4th Year</option>
                     </select>
                   </div>
                 </div>
@@ -186,7 +172,7 @@ export default function CrewRatingPage() {
                       onChange={(e) => setBranch(e.target.value)}
                       onFocus={(e) => e.currentTarget.style.borderColor = 'rgba(255,215,0,0.4)'}
                       onBlur={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'}
-                      disabled={hasSubmitted}
+                      disabled={isLoading}
                     />
                   </div>
                   <div>
@@ -198,7 +184,7 @@ export default function CrewRatingPage() {
                       onChange={(e) => setSelectedCrew(e.target.value)}
                       onFocus={(e) => e.currentTarget.style.borderColor = 'rgba(255,215,0,0.4)'}
                       onBlur={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'}
-                      disabled={hasSubmitted || isLoading}
+                      disabled={isLoading}
                     >
                       <option value="" disabled style={{ color: '#6B7280', background: '#0B0B0B' }}>
                         {isLoading ? 'Loading crew...' : 'Select Crew Member'}
@@ -220,7 +206,7 @@ export default function CrewRatingPage() {
                         key={star}
                         type="button"
                         onClick={() => setRating(star)}
-                        disabled={hasSubmitted}
+                        disabled={isLoading}
                         className="p-1 transition-transform hover:scale-110 disabled:hover:scale-100"
                       >
                         <Star
@@ -245,20 +231,20 @@ export default function CrewRatingPage() {
                     onChange={(e) => setComment(e.target.value)}
                     onFocus={(e) => e.currentTarget.style.borderColor = 'rgba(255,215,0,0.4)'}
                     onBlur={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'}
-                    disabled={hasSubmitted}
+                    disabled={isLoading}
                   />
                 </div>
 
                 <motion.button
                   type="submit"
-                  disabled={!isFormValid || hasSubmitted}
-                  whileHover={(!isFormValid || hasSubmitted) ? {} : { scale: 1.02 }}
-                  whileTap={(!isFormValid || hasSubmitted) ? {} : { scale: 0.98 }}
+                  disabled={!isFormValid || isLoading}
+                  whileHover={(!isFormValid || isLoading) ? {} : { scale: 1.02 }}
+                  whileTap={(!isFormValid || isLoading) ? {} : { scale: 0.98 }}
                   className="w-full py-3.5 rounded-xl text-sm font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{
                     background: 'linear-gradient(135deg, #FFD700, #FFA500)',
                     color: '#0B0B0B',
-                    boxShadow: (!isFormValid || hasSubmitted) ? 'none' : '0 0 20px rgba(255,215,0,0.3)',
+                    boxShadow: (!isFormValid || isLoading) ? 'none' : '0 0 20px rgba(255,215,0,0.3)',
                   }}
                 >
                   Submit Rating

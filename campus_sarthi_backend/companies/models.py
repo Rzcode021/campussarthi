@@ -95,3 +95,42 @@ class CompanyDocument(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+
+
+class CompanyContribution(models.Model):
+    CONTRIBUTION_TYPES = (
+        ('gd_questions', 'GD Questions'),
+        ('interview_questions', 'Interview Questions'),
+        ('tech_requirements', 'Technical Requirements'),
+        ('job_profile', 'Job Profile'),
+        ('package_info', 'Package Info'),
+    )
+    STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    )
+
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='contributions')
+    contribution_type = models.CharField(max_length=30, choices=CONTRIBUTION_TYPES)
+    content = models.TextField()  # Can be JSON string or plain text
+    file = models.FileField(upload_to='campus_sarthi/contributions/', blank=True, null=True, storage=RawMediaCloudinaryStorage())
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, related_name='submitted_contributions'
+    )
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='approved_contributions'
+    )
+    rejection_reason = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.contribution_type} for {self.company.name} by {self.submitted_by}"
+
+    class Meta:
+        ordering = ['-created_at']

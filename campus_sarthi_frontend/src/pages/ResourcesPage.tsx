@@ -6,8 +6,15 @@ import type { Resource } from '../types/resource';
 import EmptyState from '../components/EmptyState';
 
 const ACCENT = '#A855F7'; // Purple
-type Category = 'DSA' | 'Python' | 'Interview Prep' | 'Aptitude';
-const TABS: Category[] = ['DSA', 'Python', 'Interview Prep', 'Aptitude'];
+type Category = 'CSE' | 'CyberSecurity' | 'AI_ML' | 'DataScience' | 'IT' | 'ECE' | 'EE' | 'Mechanical' | 'Civil' | 'MBA' | 'Pharmacy' | 'Aptitude' | 'Communication' | 'Placement' | 'HigherStudies';
+const TABS: Category[] = ['CSE','CyberSecurity','AI_ML','DataScience','IT','ECE','EE','Mechanical','Civil','MBA','Pharmacy','Aptitude','Communication','Placement','HigherStudies'];
+const TAB_LABEL: Record<Category, string> = {
+  CSE: 'Computer Science', CyberSecurity: 'Cyber Security', AI_ML: 'AI / ML',
+  DataScience: 'Data Science', IT: 'Information Technology', ECE: 'Electronics',
+  EE: 'Electrical', Mechanical: 'Mechanical', Civil: 'Civil',
+  MBA: 'MBA / Management', Pharmacy: 'Pharmacy', Aptitude: 'Aptitude',
+  Communication: 'Communication', Placement: 'Placement Prep', HigherStudies: 'GATE / GRE / CAT',
+};
 
 const diffStyle: Record<string, { bg: string; color: string }> = {
   Beginner:     { bg: 'rgba(16,185,129,0.12)', color: '#6EE7B7' },
@@ -24,7 +31,7 @@ const fadeUp = {
 export default function ResourcesPage() {
   const [grouped, setGrouped] = useState<Record<string, Resource[]>>({});
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<Category>('DSA');
+  const [activeTab, setActiveTab] = useState<Category>('CSE');
 
   useEffect(() => {
     resourcesApi.getAll()
@@ -58,15 +65,15 @@ export default function ResourcesPage() {
       </motion.div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-7" style={{ borderBottom: '1px solid #1E2A45' }}>
+      <div className="flex gap-1 mb-7 overflow-x-auto pb-px" style={{ borderBottom: '1px solid #1E2A45' }}>
         {TABS.map((t) => (
           <button
             key={t}
             onClick={() => setActiveTab(t)}
-            className="px-4 py-2.5 text-sm font-medium relative whitespace-nowrap transition-colors duration-200"
+            className="px-4 py-2.5 text-sm font-medium relative whitespace-nowrap transition-colors duration-200 flex-shrink-0"
             style={{ color: activeTab === t ? ACCENT : '#475569' }}
           >
-            {t}
+            {TAB_LABEL[t]}
             {activeTab === t && (
               <motion.div layoutId="resources-tab" className="absolute bottom-0 left-0 right-0 h-0.5 rounded-t-full" style={{ background: ACCENT }} />
             )}

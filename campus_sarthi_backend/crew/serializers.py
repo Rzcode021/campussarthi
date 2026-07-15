@@ -24,8 +24,8 @@ class CrewMemberSerializer(serializers.ModelSerializer):
 class CrewRatingSerializer(serializers.ModelSerializer):
     class Meta:
         model = CrewRating
-        fields = ['id', 'crew_member', 'rated_by', 'stars', 'comment', 'updated_at']
-        read_only_fields = ['rated_by']
+        fields = ['id', 'crew_member', 'rated_by', 'name', 'year', 'branch', 'stars', 'comment', 'created_at']
+        read_only_fields = ['rated_by', 'created_at']
 
 
 class PlacementFamilyMemberSerializer(serializers.ModelSerializer):

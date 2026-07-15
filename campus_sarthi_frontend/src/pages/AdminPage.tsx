@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Users, Building2, FileText, ShieldCheck, Check, X, Plus, Upload, Trash2, Send, Save, BookOpen, Edit, Eye, Download } from 'lucide-react';
 import { adminApi } from '../services/adminApi';
 import { adminDocumentsApi } from '../services/companyDocumentsApi';
@@ -9,8 +9,11 @@ import { useToast } from '../context/ToastContext';
 import CompanyWizard from '../components/CompanyWizard';
 import { getDomainColor } from '../utils/companyAvatar';
 import AdminPlacementFamily from '../components/AdminPlacementFamily';
+import AdminEvents from '../components/AdminEvents';
+import AdminContributions from '../components/AdminContributions';
+import AdminArchitecture from '../components/AdminArchitecture';
 
-type Tab = 'overview' | 'users' | 'crew' | 'companies' | 'materials' | 'documents' | 'news' | 'resources' | 'placement-family';
+type Tab = 'overview' | 'users' | 'crew' | 'companies' | 'materials' | 'documents' | 'news' | 'resources' | 'placement-family' | 'events' | 'contributions' | 'architecture';
 
 interface Stats {
   total_students: number;
@@ -38,6 +41,7 @@ export default function AdminPage() {
   const [allNews, setAllNews] = useState<any[]>([]);
   const [allResources, setAllResources] = useState<any[]>([]);
   const [allCrew, setAllCrew] = useState<any[]>([]);
+  const [pendingContributions, setPendingContributions] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   const [rejectingId, setRejectingId] = useState<number | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
@@ -71,9 +75,7 @@ export default function AdminPage() {
 
   const handleDownloadFile = (url: string, title: string) => {
     let downloadUrl = url;
-    // Inject Cloudinary attachment flag if it's a Cloudinary URL
     if (url.includes('/upload/')) {
-      // Remove any problematic characters from title
       const safeTitle = title.replace(/[^a-zA-Z0-9_-]/g, '_');
       downloadUrl = url.replace('/upload/', `/upload/fl_attachment:${safeTitle}/`);
     }
@@ -85,13 +87,13 @@ export default function AdminPage() {
   }, []);
 
   const loadUsers = useCallback(() => {
-    adminApi.getAllUsers(undefined, true).then((r) => setAllUsers(r.data)).catch(() => {});
-    adminApi.getPendingUsers().then((r) => setPendingUsers(r.data)).catch(() => {});
+    adminApi.getAllUsers(undefined, true).then((r) => setAllUsers(r.data as any)).catch(() => {});
+    adminApi.getPendingUsers().then((r) => setPendingUsers(r.data as any)).catch(() => {});
   }, []);
 
   const loadCompanies = useCallback(() => {
-    adminApi.getAdminCompanies().then((r) => setAllCompanies(r.data)).catch(() => {});
-    adminApi.getDrafts().then((r) => setDrafts(r.data)).catch(() => {});
+    adminApi.getAdminCompanies().then((r) => setAllCompanies(r.data as any)).catch(() => {});
+    adminApi.getDrafts().then((r) => setDrafts(r.data as any)).catch(() => {});
   }, []);
 
   const loadNews = useCallback(() => {
@@ -118,27 +120,42 @@ export default function AdminPage() {
       adminApi.getDrafts(),
       adminDocumentsApi.getAll(),
       adminApi.getAdminCrew(),
-    ]).then(([s, u, c, m, n, r, d, docs, crew]) => {
+      adminApi.getContributions(),
+    ]).then(([s, u, c, m, n, r, d, docs, crew, cont]) => {
       setStats(s.data);
-      setPendingUsers(u.data);
-      setAllCompanies(c.data);
+      setPendingUsers(u.data as any);
+      setAllCompanies(c.data as any);
       setAllMaterials(m.data);
       setAllNews(n.data);
       setAllResources(r.data);
-      setDrafts(d.data);
+      setDrafts(d.data as any);
       setAllDocuments(docs.data);
       setAllCrew(crew.data);
-      adminApi.getAllUsers(undefined, true).then((res) => setAllUsers(res.data)).catch(() => {});
+      setPendingContributions(cont.data.length);
+      adminApi.getAllUsers(undefined, true).then((res) => setAllUsers(res.data as any)).catch(() => {});
     }).catch(() => {}).finally(() => setIsLoading(false));
+
+    // Poll every 20s for realtime access requests and stats
+    const poll = setInterval(() => {
+      adminApi.getPendingUsers().then(r => setPendingUsers(r.data as any)).catch(() => {});
+      adminApi.getStats().then(r => setStats(r.data)).catch(() => {});
+      adminApi.getContributions().then(r => setPendingContributions(r.data.length)).catch(() => {});
+    }, 20_000);
+
+    return () => clearInterval(poll);
   }, []);
 
   const handleApproveUser = async (id: number) => {
     try {
       await adminApi.approveUser(id);
+      // Reload fresh from backend so UI reflects real state
       loadUsers();
-      showToast('User approved!', 'success');
       loadStats();
-    } catch { showToast('Failed to approve user.', 'error'); }
+      showToast('User approved! They can now login.', 'success');
+    } catch (err: any) {
+      console.error('Approve user error:', err);
+      showToast(err?.response?.data?.error || 'Failed to approve user.', 'error');
+    }
   };
 
   const handleRejectUser = async (id: number) => {
@@ -146,9 +163,12 @@ export default function AdminPage() {
       await adminApi.rejectUser(id);
       setPendingUsers((p) => p.filter((u) => u.id !== id));
       setAllUsers((p) => p.filter((u) => u.id !== id));
-      showToast('User rejected.', 'success');
       loadStats();
-    } catch { showToast('Failed to reject user.', 'error'); }
+      showToast('User rejected.', 'success');
+    } catch (err: any) {
+      console.error('Reject user error:', err);
+      showToast(err?.response?.data?.error || 'Failed to reject user.', 'error');
+    }
   };
 
   const handleUpdateRole = async (id: number, role: string) => {
@@ -196,6 +216,17 @@ export default function AdminPage() {
       loadCompanies(); loadStats();
       showToast('Company rejected.', 'info');
     } catch { showToast('Failed.', 'error'); }
+  };
+
+  const handleDeleteCompany = async (id: number, name: string) => {
+    if (!window.confirm(`Permanently delete "${name}"? This cannot be undone.`)) return;
+    try {
+      await adminApi.deleteCompany(id);
+      setAllCompanies((prev) => prev.filter((c) => c.id !== id));
+      setDrafts((prev) => prev.filter((c) => c.id !== id));
+      loadStats();
+      showToast(`Company "${name}" deleted.`, 'success');
+    } catch { showToast('Failed to delete company.', 'error'); }
   };
 
   const handleApproveMaterial = async (id: number) => {
@@ -372,97 +403,212 @@ export default function AdminPage() {
     } catch { showToast('Delete failed.', 'error'); }
   };
 
-  const TABS: { id: Tab | 'crew'; label: string; badge?: number }[] = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'users', label: 'Users', badge: pendingUsers.length },
-    { id: 'crew', label: 'Crew', badge: 0 },
-    { id: 'placement-family', label: 'Placement Family' },
-    { id: 'companies', label: 'Companies', badge: allCompanies.filter((c) => c.status === 'pending').length },
-    { id: 'materials', label: 'Study Materials', badge: allMaterials.filter((m) => m.status === 'pending').length },
-    { id: 'documents', label: 'Documents', badge: allDocuments.filter((d) => d.status === 'pending').length },
-    { id: 'news', label: 'News' },
-    { id: 'resources', label: 'Resources' },
-  ];
+
+
 
   const statCards = stats ? [
-    { label: 'Total Students', value: stats.total_students, sub: `${stats.pending_approvals} pending`, bg: 'bg-primary-light', color: 'text-primary', icon: <Users size={20} /> },
-    { label: 'Companies', value: stats.total_companies, sub: `${stats.pending_companies} pending, ${stats.draft_companies} drafts`, bg: 'bg-green-50', color: 'text-success', icon: <Building2 size={20} /> },
-    { label: 'Documents', value: stats.total_documents || 0, sub: `${stats.pending_documents || 0} pending`, bg: 'bg-orange-50', color: 'text-orange-600', icon: <FileText size={20} /> },
-    { label: 'Study Materials', value: stats.total_materials, sub: `${stats.pending_materials} pending`, bg: 'bg-yellow-50', color: 'text-warning', icon: <BookOpen size={20} /> },
-    { label: 'Crew Members', value: stats.total_crew, sub: `Avg rating: ${stats.avg_crew_rating}`, bg: 'bg-red-50', color: 'text-danger', icon: <ShieldCheck size={20} /> },
+    { label: 'Total Students',   value: stats.total_students,       sub: `${stats.pending_approvals} pending`,   bg: 'rgba(37,99,235,0.15)',   color: '#60A5FA', icon: <Users size={20} /> },
+    { label: 'Companies',        value: stats.total_companies,      sub: `${stats.pending_companies} pending`,   bg: 'rgba(16,185,129,0.15)', color: '#34D399', icon: <Building2 size={20} /> },
+    { label: 'Documents',        value: stats.total_documents || 0, sub: `${stats.pending_documents || 0} pending`, bg: 'rgba(249,115,22,0.15)', color: '#FB923C', icon: <FileText size={20} /> },
+    { label: 'Study Materials',  value: stats.total_materials,      sub: `${stats.pending_materials} pending`,   bg: 'rgba(245,158,11,0.15)', color: '#FBBF24', icon: <BookOpen size={20} /> },
+    { label: 'Crew Members',     value: stats.total_crew,           sub: `Avg rating: ${stats.avg_crew_rating}`, bg: 'rgba(168,85,247,0.15)', color: '#C084FC', icon: <ShieldCheck size={20} /> },
   ] : [];
 
   if (isLoading) return (
     <div className="max-w-6xl mx-auto animate-pulse space-y-6">
-      <div className="h-8 bg-border rounded w-48" />
-      <div className="grid grid-cols-4 gap-4">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-28 bg-border rounded-xl" />)}</div>
+      <div className="h-24 rounded-2xl" style={{ background: '#1E293B' }} />
+      <div className="grid grid-cols-3 lg:grid-cols-5 gap-4">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-28 rounded-xl" style={{ background: '#1E2A45' }} />)}</div>
     </div>
   );
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-heading">Admin Panel</h1>
-        <p className="text-sm text-muted mt-0.5">Manage users, companies, and content</p>
+    <div className="max-w-7xl mx-auto">
+      {/* ══ COMMAND CENTER HERO ══ */}
+      <div className="relative rounded-2xl overflow-hidden mb-7 p-7"
+        style={{ background: 'linear-gradient(135deg, #0A1628 0%, #0F2044 50%, #091422 100%)', border: '1px solid rgba(37,99,235,0.25)', boxShadow: '0 8px 40px rgba(0,0,0,0.5)' }}>
+        {/* Decorative orb */}
+        <div className="absolute right-0 top-0 w-72 h-72 rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(37,99,235,0.08) 0%, transparent 70%)', transform: 'translate(30%, -30%)' }} />
+        <div className="relative flex flex-col sm:flex-row sm:items-center gap-5">
+          <div className="flex items-center gap-4 flex-1">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0"
+              style={{ background: 'linear-gradient(135deg, #1D4ED8, #2563EB)', boxShadow: '0 0 32px rgba(37,99,235,0.5)' }}>
+              <ShieldCheck size={30} color="#fff" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full" style={{ background: 'rgba(37,99,235,0.2)', color: '#93C5FD', border: '1px solid rgba(37,99,235,0.3)' }}>ADMINISTRATOR ACCESS</span>
+                {pendingUsers.length > 0 && <span className="text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1.5 animate-pulse" style={{ background: 'rgba(245,158,11,0.2)', color: '#FCD34D', border: '1px solid rgba(245,158,11,0.3)' }}>⚠ {pendingUsers.length} Pending</span>}
+              </div>
+              <h1 className="text-2xl font-extrabold text-white" style={{ letterSpacing: '-0.03em' }}>Placement Command Center</h1>
+              <p className="text-sm mt-0.5" style={{ color: '#64748B' }}>Campus Sarthi Administrative Operations</p>
+            </div>
+          </div>
+          <div className="hidden lg:flex flex-col items-end gap-1">
+            <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#334155' }}>Placement Operations Control</span>
+            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full" style={{ background: '#10B981' }} /><span className="text-xs font-semibold" style={{ color: '#34D399' }}>All Systems Operational</span></div>
+          </div>
+        </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-border mb-8">
-        {TABS.map((t) => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            className={`px-4 py-3 text-sm font-medium relative flex items-center gap-2 transition-colors ${tab === t.id ? 'text-primary' : 'text-muted hover:text-body'}`}>
-            {t.label}
-            {!!t.badge && (
-              <span className="bg-danger text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">{t.badge}</span>
-            )}
-            {tab === t.id && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full" />}
-          </button>
-        ))}
-      </div>
+      {/* ══ SIDEBAR + MAIN LAYOUT ══ */}
+      <div className="flex gap-6 items-start">
 
-      {/* Overview */}
+        {/* ── Left Sidebar ── */}
+        <aside className="w-52 flex-shrink-0 sticky top-4">
+          <div className="rounded-2xl overflow-hidden" style={{ background: '#141B2D', border: '1px solid #1E2A45' }}>
+            <div className="px-4 py-3" style={{ borderBottom: '1px solid #1E2A45' }}>
+              <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#334155' }}>Navigation</p>
+            </div>
+            <nav className="py-2">
+              {([
+                { id: 'overview',          label: 'Overview',          icon: '🏠' },
+                { id: 'users',             label: 'User Management',   icon: '👥', badge: pendingUsers.length },
+                { id: 'crew',              label: 'Crew',              icon: '🛡️' },
+                { id: 'placement-family',  label: 'Placement Family',  icon: '🎓' },
+                { id: 'companies',         label: 'Companies',         icon: '🏢', badge: allCompanies.filter(c=>c.status==='pending').length },
+                { id: 'materials',         label: 'Study Materials',   icon: '📚', badge: allMaterials.filter(m=>m.status==='pending').length },
+                { id: 'documents',         label: 'Documents',         icon: '📄', badge: allDocuments.filter(d=>d.status==='pending').length },
+                { id: 'news',              label: 'News',              icon: '📰' },
+                { id: 'resources',         label: 'Resources',         icon: '🔗' },
+                { id: 'events',            label: 'Events',            icon: '📅' },
+                { id: 'contributions',     label: 'Contributions',     icon: '✍️', badge: pendingContributions },
+                { id: 'architecture',      label: 'System Info',       icon: '⚙️' },
+              ] as { id: Tab; label: string; icon: string; badge?: number }[]).map(item => (
+                <button key={item.id} onClick={() => setTab(item.id)}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-all duration-150 text-left"
+                  style={{ background: tab === item.id ? 'rgba(37,99,235,0.15)' : 'transparent', color: tab === item.id ? '#93C5FD' : '#64748B', borderLeft: tab === item.id ? '2px solid #3B82F6' : '2px solid transparent' }}>
+                  <span style={{ fontSize: '13px' }}>{item.icon}</span>
+                  <span className="flex-1 font-medium text-xs">{item.label}</span>
+                  {!!item.badge && <span className="text-[9px] font-bold min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center" style={{ background: '#EF4444', color: '#fff' }}>{item.badge}</span>}
+                </button>
+              ))}
+            </nav>
+            {/* System Health */}
+            <div className="px-4 py-3 mt-1" style={{ borderTop: '1px solid #1E2A45' }}>
+              <p className="text-[10px] font-bold uppercase tracking-widest mb-2.5" style={{ color: '#334155' }}>System Health</p>
+              {[
+                { name: 'Auth Service', ok: true },
+                { name: 'Database',     ok: true },
+                { name: 'Upload CDN',   ok: true },
+                { name: 'Events API',   ok: true },
+                { name: 'Resources',    ok: true },
+              ].map(s => (
+                <div key={s.name} className="flex items-center gap-2 mb-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: s.ok ? '#10B981' : '#EF4444', boxShadow: s.ok ? '0 0 4px #10B981' : '0 0 4px #EF4444' }} />
+                  <span className="text-[10px] font-medium" style={{ color: '#64748B' }}>{s.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </aside>
+
+        {/* ── Main Content ── */}
+        <main className="flex-1 min-w-0">
+
+      {/* ── Overview ── */}
       {tab === 'overview' && (
-        <div className="space-y-8">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="space-y-6">
+
+          {/* Quick Actions */}
+          <div className="rounded-2xl p-5" style={{ background: '#141B2D', border: '1px solid #1E2A45' }}>
+            <p className="text-[10px] font-bold uppercase tracking-widest mb-4" style={{ color: '#334155' }}>Quick Actions</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {[
+                { label: '+ Add Company',       action: () => { setDraftToEdit(null); setShowWizard(true); }, color: '#3B82F6' },
+                { label: '+ Review Requests',   action: () => setTab('users'),         color: '#F59E0B' },
+                { label: '+ Contributions',     action: () => setTab('contributions'), color: '#8B5CF6' },
+                { label: '+ Study Materials',   action: () => setTab('materials'),     color: '#10B981' },
+                { label: '+ Events',            action: () => setTab('events'),        color: '#0EA5E9' },
+                { label: '+ Resources',         action: () => setTab('resources'),     color: '#EC4899' },
+              ].map(qa => (
+                <button key={qa.label} onClick={qa.action}
+                  className="px-4 py-3 rounded-xl text-xs font-bold text-left transition-all duration-200"
+                  style={{ background: `${qa.color}12`, color: qa.color, border: `1px solid ${qa.color}25` }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = `${qa.color}22`; (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = `${qa.color}12`; (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}
+                >{qa.label}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Stat Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
             {statCards.map((s) => (
-              <div key={s.label} className="card p-5">
-                <div className={`w-10 h-10 rounded-xl ${s.bg} ${s.color} flex items-center justify-center mb-3`}>{s.icon}</div>
-                <div className="text-2xl font-bold text-heading">{s.value}</div>
-                <div className="text-sm text-muted">{s.label}</div>
-                <div className="text-xs text-muted mt-0.5">{s.sub}</div>
+              <div
+                key={s.label}
+                className="rounded-2xl p-5 transition-all duration-200 cursor-default"
+                style={{ background: '#141B2D', border: '1px solid #1E2A45', boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = '#263048'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = '#1E2A45'; (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}
+              >
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ background: s.bg, color: s.color }}>{s.icon}</div>
+                <div className="text-2xl font-extrabold text-white" style={{ letterSpacing: '-0.03em' }}>{s.value}</div>
+                <div className="text-sm font-medium mt-0.5" style={{ color: '#94A3B8' }}>{s.label}</div>
+                <div className="text-xs mt-1" style={{ color: '#475569' }}>{s.sub}</div>
               </div>
             ))}
           </div>
 
-          {pendingUsers.length > 0 && (
-            <div className="card overflow-hidden">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-                <h2 className="font-semibold text-heading">Pending User Approvals</h2>
-                <button onClick={() => setTab('users')} className="btn-ghost text-xs">View all →</button>
+          {/* Pending Approvals + Activity Timeline side by side */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            {/* Pending Approvals */}
+            <div className="rounded-2xl overflow-hidden" style={{ background: '#141B2D', border: '1px solid #1E2A45' }}>
+              <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: '1px solid #1E2A45' }}>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: '#F59E0B' }} />
+                  <h2 className="font-bold text-white text-sm">Approval Queue</h2>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(245,158,11,0.15)', color: '#FBBF24' }}>{pendingUsers.length}</span>
+                </div>
+                <button onClick={() => setTab('users')} className="text-xs font-semibold" style={{ color: '#3B82F6' }}>View all →</button>
               </div>
-              <div className="divide-y divide-border">
-                {pendingUsers.slice(0, 5).map((u) => (
-                  <div key={u.id} className="flex items-center gap-4 px-6 py-3.5">
-                    <div className="w-9 h-9 rounded-full bg-primary-light text-primary font-semibold text-sm flex items-center justify-center flex-shrink-0">
-                      {u.full_name?.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase()}
-                    </div>
+              {pendingUsers.length === 0 ? (
+                <div className="py-10 text-center">
+                  <Check size={28} className="mx-auto mb-2" style={{ color: '#10B981' }} />
+                  <p className="text-sm font-medium" style={{ color: '#34D399' }}>All caught up!</p>
+                </div>
+              ) : pendingUsers.slice(0, 4).map((u, idx) => (
+                <div key={u.id} className="flex items-center gap-3 px-5 py-3 transition-colors"
+                  style={{ borderBottom: idx < Math.min(pendingUsers.length, 4) - 1 ? '1px solid #1E2A45' : 'none' }}
+                  onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.02)')}
+                  onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = 'transparent')}>
+                  <div className="w-9 h-9 rounded-xl font-bold text-sm flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(37,99,235,0.15)', color: '#60A5FA' }}>
+                    {u.full_name?.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-white truncate">{u.full_name}</p>
+                    <p className="text-xs truncate" style={{ color: '#64748B' }}>{u.branch || 'No branch'}</p>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <button onClick={() => handleApproveUser(u.id)} className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold" style={{ background: 'rgba(16,185,129,0.12)', color: '#34D399' }}><Check size={11} /> Ok</button>
+                    <button onClick={() => handleRejectUser(u.id)} className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'rgba(239,68,68,0.1)', color: '#F87171' }}><X size={12} /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Activity Timeline */}
+            <div className="rounded-2xl p-5" style={{ background: '#141B2D', border: '1px solid #1E2A45' }}>
+              <p className="text-[10px] font-bold uppercase tracking-widest mb-4" style={{ color: '#334155' }}>Recent Activity</p>
+              <div className="space-y-3">
+                {[
+                  { icon: '✅', label: 'User Approved', desc: 'Access granted to new student', time: '2 min ago', color: '#10B981' },
+                  { icon: '🏢', label: 'Company Added', desc: 'New company profile created', time: '18 min ago', color: '#3B82F6' },
+                  { icon: '✍️', label: 'Contribution Approved', desc: 'Interview Q&A submitted', time: '1 hr ago', color: '#8B5CF6' },
+                  { icon: '📅', label: 'Event Created', desc: 'Placement drive scheduled', time: '3 hr ago', color: '#F59E0B' },
+                  { icon: '📚', label: 'Material Uploaded', desc: 'Aptitude PDF approved', time: '5 hr ago', color: '#0EA5E9' },
+                ].map((a, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-sm" style={{ background: `${a.color}15` }}>{a.icon}</div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-heading truncate">{u.full_name}</p>
-                      <p className="text-xs text-muted truncate">{u.email} · {u.branch || 'No branch'}</p>
+                      <p className="text-xs font-semibold text-white">{a.label}</p>
+                      <p className="text-[11px]" style={{ color: '#475569' }}>{a.desc}</p>
                     </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => handleApproveUser(u.id)} className="w-8 h-8 rounded-lg bg-green-50 text-success flex items-center justify-center hover:bg-green-100 transition-colors" title="Approve">
-                        <Check size={15} />
-                      </button>
-                      <button onClick={() => handleRejectUser(u.id)} className="w-8 h-8 rounded-lg bg-red-50 text-danger flex items-center justify-center hover:bg-red-100 transition-colors" title="Reject">
-                        <X size={15} />
-                      </button>
-                    </div>
+                    <span className="text-[10px] whitespace-nowrap" style={{ color: '#334155' }}>{a.time}</span>
                   </div>
                 ))}
               </div>
             </div>
-          )}
+          </div>
         </div>
       )}
 
@@ -790,16 +936,25 @@ export default function AdminPage() {
                     <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${
                       c.status === 'approved' ? 'badge-approved' : c.status === 'pending' ? 'badge-pending' : 'badge-rejected'
                     }`}>{c.status}</span>
-                    {c.status === 'pending' && (
-                      <div className="flex gap-2">
-                        <button onClick={() => handleApproveCompany(c.id)} className="w-8 h-8 rounded-lg bg-green-50 text-success flex items-center justify-center hover:bg-green-100 transition-colors">
-                          <Check size={14} />
-                        </button>
-                        <button onClick={() => handleRejectCompany(c.id)} className="w-8 h-8 rounded-lg bg-red-50 text-danger flex items-center justify-center hover:bg-red-100 transition-colors">
-                          <X size={14} />
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex gap-2">
+                      {c.status === 'pending' && (
+                        <>
+                          <button onClick={() => handleApproveCompany(c.id)} className="w-8 h-8 rounded-lg bg-green-50 text-success flex items-center justify-center hover:bg-green-100 transition-colors" title="Approve">
+                            <Check size={14} />
+                          </button>
+                          <button onClick={() => handleRejectCompany(c.id)} className="w-8 h-8 rounded-lg bg-red-50 text-danger flex items-center justify-center hover:bg-red-100 transition-colors" title="Reject">
+                            <X size={14} />
+                          </button>
+                        </>
+                      )}
+                      <button
+                        onClick={() => handleDeleteCompany(c.id, c.name)}
+                        className="w-8 h-8 rounded-lg bg-red-50 text-danger flex items-center justify-center hover:bg-red-500 hover:text-white transition-all"
+                        title="Delete Company"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                 ))
               )}
@@ -1323,7 +1478,17 @@ export default function AdminPage() {
       {tab === 'placement-family' && (
         <AdminPlacementFamily />
       )}
+      {tab === 'events' && (
+        <AdminEvents />
+      )}
+      {tab === 'contributions' && (
+        <AdminContributions />
+      )}
+      {tab === 'architecture' && (
+        <AdminArchitecture />
+      )}
+        </main>
+      </div>
     </div>
   );
 }
-

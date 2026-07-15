@@ -1,0 +1,1 @@
+﻿src/services/adminApi.ts(190,19): error TS6133: 'eventId' is declared but its value is never read.

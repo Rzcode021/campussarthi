@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
 import { X } from 'lucide-react';
 import { placementFamilyApi } from '../services/crewApi';
@@ -165,8 +165,8 @@ function MemberNode({
   );
 }
 
-/* ─── SVG Connector Tree ─── */
-function CrewTree({
+/* ─── Multi-level Pyramid Crew Tree ─── */
+function CrewPyramidTree({
   lead,
   crew,
   onNodeClick,
@@ -175,130 +175,155 @@ function CrewTree({
   crew: PlacementMember[];
   onNodeClick: (m: PlacementMember) => void;
 }) {
-  const NODE_W = 132;
-  const NODE_H = 170;
+  const connectorColor = 'rgba(59,130,246,0.5)';
+
+  // Group crew by hierarchy_level, sorted ascending
+  const tierMap: Record<number, PlacementMember[]> = {};
+  crew.forEach((m) => {
+    if (!tierMap[m.hierarchy_level]) tierMap[m.hierarchy_level] = [];
+    tierMap[m.hierarchy_level].push(m);
+  });
+  const tierLevels = Object.keys(tierMap)
+    .map(Number)
+    .sort((a, b) => a - b);
+
+  // Node sizes per row (Lead → Tier1 → Tier2 → Tier3)
   const LEAD_SIZE = 130;
-  const CREW_SIZE = 90;
-  const GAP = 16;
-  const V_GAP = 120;
+  const tierSizes = [88, 76, 64];
+  const ROW_V_GAP = 80; // vertical gap between rows
 
-  const crewCount = crew.length;
-  const svgWidth = Math.max(crewCount * (NODE_W + GAP), LEAD_SIZE + 80);
-  const svgHeight = lead ? NODE_H + V_GAP + NODE_H : NODE_H;
-
-  // Lead center-x
-  const leadX = svgWidth / 2;
-  const leadNodeTop = 20;
-  const leadBottom = leadNodeTop + LEAD_SIZE + 50; // approx bottom of lead node
-
-  // Crew positions
-  const crewStartY = leadBottom + V_GAP * 0.5;
-  const crewXPositions = crew.map((_, i) => {
-    const totalWidth = crewCount * NODE_W + (crewCount - 1) * GAP;
-    return svgWidth / 2 - totalWidth / 2 + i * (NODE_W + GAP) + NODE_W / 2;
+  // Tier label names
+  const tierLabels: Record<number, string> = {};
+  tierLevels.forEach((lv, idx) => {
+    tierLabels[lv] = idx === 0
+      ? 'Senior Coordinators'
+      : idx === 1
+        ? 'Core Coordinators'
+        : 'Junior Coordinators';
   });
 
-  const connectorColor = 'rgba(59,130,246,0.45)';
-
   return (
-    <div style={{ position: 'relative', width: svgWidth, margin: '0 auto' }}>
-      {/* SVG Connectors */}
-      {lead && crew.length > 0 && (
-        <svg
-          style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 0 }}
-          width={svgWidth}
-          height={svgHeight + NODE_H}
-          overflow="visible"
-        >
-          <defs>
-            <filter id="glow-line">
-              <feGaussianBlur stdDeviation="2" result="coloredBlur" />
-              <feMerge>
-                <feMergeNode in="coloredBlur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-          </defs>
-          {/* Vertical from lead */}
-          <motion.line
-            x1={leadX}
-            y1={leadBottom - 20}
-            x2={leadX}
-            y2={leadBottom + V_GAP * 0.35}
-            stroke={connectorColor}
-            strokeWidth={2}
-            filter="url(#glow-line)"
-            initial={{ pathLength: 0, opacity: 0 }}
-            animate={{ pathLength: 1, opacity: 1 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-          />
-          {/* Horizontal bar */}
-          {crew.length > 1 && (
-            <motion.line
-              x1={crewXPositions[0]}
-              y1={leadBottom + V_GAP * 0.35}
-              x2={crewXPositions[crewXPositions.length - 1]}
-              y2={leadBottom + V_GAP * 0.35}
-              stroke={connectorColor}
-              strokeWidth={2}
-              filter="url(#glow-line)"
-              initial={{ pathLength: 0, opacity: 0 }}
-              animate={{ pathLength: 1, opacity: 1 }}
-              transition={{ duration: 0.6, delay: 0.5 }}
-            />
-          )}
-          {/* Verticals to each crew member */}
-          {crewXPositions.map((cx, i) => (
-            <motion.line
-              key={i}
-              x1={cx}
-              y1={leadBottom + V_GAP * 0.35}
-              x2={cx}
-              y2={crewStartY}
-              stroke={connectorColor}
-              strokeWidth={2}
-              filter="url(#glow-line)"
-              initial={{ pathLength: 0, opacity: 0 }}
-              animate={{ pathLength: 1, opacity: 1 }}
-              transition={{ duration: 0.4, delay: 0.6 + i * 0.05 }}
-            />
-          ))}
-        </svg>
-      )}
-
-      {/* Lead node */}
+    <div style={{ width: '100%', maxWidth: 1200, margin: '0 auto' }}>
+      {/* ── Lead row ── */}
       {lead && (
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            paddingTop: leadNodeTop,
-            position: 'relative',
-            zIndex: 2,
-          }}
-        >
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: ROW_V_GAP }}>
           <MemberNode member={lead} size={LEAD_SIZE} delay={0} onClick={onNodeClick} />
         </div>
       )}
 
-      {/* Crew nodes */}
-      {crew.length > 0 && (
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            gap: GAP,
-            paddingTop: lead ? V_GAP * 0.8 : 0,
-            flexWrap: 'wrap',
-            position: 'relative',
-            zIndex: 2,
-          }}
-        >
-          {crew.map((m, i) => (
-            <MemberNode key={m.id} member={m} size={CREW_SIZE} delay={0.5 + i * 0.08} onClick={onNodeClick} />
-          ))}
-        </div>
-      )}
+      {/* ── Tier rows ── */}
+      {tierLevels.map((lv, tierIdx) => {
+        const members = tierMap[lv];
+        const nodeSize = tierSizes[Math.min(tierIdx, tierSizes.length - 1)];
+        const isLast = tierIdx === tierLevels.length - 1;
+
+        return (
+          <div key={lv} style={{ position: 'relative' }}>
+            {/* Connector bar from tier above */}
+            {(lead || tierIdx > 0) && (
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'flex-start',
+                  gap: 0,
+                  marginBottom: 0,
+                  position: 'relative',
+                }}
+              >
+                {/* Vertical stem down into this row */}
+                <div
+                  style={{
+                    width: 2,
+                    height: 32,
+                    background: `linear-gradient(to bottom, ${connectorColor}, ${connectorColor})`,
+                    boxShadow: `0 0 6px rgba(59,130,246,0.4)`,
+                    borderRadius: 2,
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Tier label badge */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '4px 14px',
+                  borderRadius: 20,
+                  background: `rgba(59,130,246,${0.07 + tierIdx * 0.02})`,
+                  border: `1px solid rgba(59,130,246,${0.2 + tierIdx * 0.05})`,
+                  color: `rgba(37,99,235,${0.8 + tierIdx * 0.07})`,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  letterSpacing: '0.07em',
+                  textTransform: 'uppercase',
+                }}
+              >
+                <span
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    background: `rgba(59,130,246,${0.5 + tierIdx * 0.15})`,
+                    boxShadow: `0 0 6px rgba(59,130,246,0.6)`,
+                    display: 'inline-block',
+                  }}
+                />
+                {tierLabels[lv]} &nbsp;·&nbsp; {members.length}
+              </span>
+            </div>
+
+            {/* Horizontal connector spanning all nodes in this tier */}
+            {members.length > 1 && (
+              <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', marginBottom: 4 }}>
+                <motion.div
+                  initial={{ scaleX: 0, opacity: 0 }}
+                  animate={{ scaleX: 1, opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.2 + tierIdx * 0.15 }}
+                  style={{
+                    height: 2,
+                    width: `min(${members.length * (nodeSize + 20)}px, 100%)`,
+                    background: `linear-gradient(90deg, transparent, ${connectorColor} 10%, ${connectorColor} 90%, transparent)`,
+                    boxShadow: `0 0 8px rgba(59,130,246,0.35)`,
+                    borderRadius: 2,
+                    transformOrigin: 'center',
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Member nodes grid */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.15 + tierIdx * 0.2 }}
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                flexWrap: 'wrap',
+                gap: tierIdx === 0 ? 28 : tierIdx === 1 ? 18 : 12,
+                padding: `0 ${tierIdx * 8}px`,
+              }}
+            >
+              {members.map((m, i) => (
+                <MemberNode
+                  key={m.id}
+                  member={m}
+                  size={nodeSize}
+                  delay={0.3 + tierIdx * 0.15 + i * 0.05}
+                  onClick={onNodeClick}
+                />
+              ))}
+            </motion.div>
+
+            {/* Space between tiers */}
+            {!isLast && <div style={{ height: ROW_V_GAP }} />}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -459,7 +484,7 @@ export default function PlacementFamilySection() {
     placementFamilyApi
       .getAll()
       .then((r) => setMembers(r.data))
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   }, []);
 
@@ -657,9 +682,9 @@ export default function PlacementFamilySection() {
               >
                 <SectionHeader
                   title="Placement Crew"
-                  subtitle="Your dedicated team of student coordinators driving the entire placement ecosystem"
+                  subtitle="Our dedicated team of student coordinators driving the entire placement ecosystem"
                 />
-                <CrewTree lead={crewLead} crew={crewMembers} onNodeClick={setSelected} />
+                <CrewPyramidTree lead={crewLead} crew={crewMembers} onNodeClick={setSelected} />
               </motion.div>
             )}
           </>

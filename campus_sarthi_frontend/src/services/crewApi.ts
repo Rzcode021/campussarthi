@@ -15,8 +15,9 @@ export const crewApi = {
 
   // Public endpoints (no login required)
   getAllPublic: () => publicApi.get('/api/crew/'),
-  submitPublicRating: (crewId: number, data: { stars: number; comment: string; name: string; year: string; branch: string }) =>
+  submitPublicRating: (crewId: number, data: any) =>
     publicApi.post(`/api/crew/${crewId}/rate/`, data),
+  getRecentFeedbacks: (crewId: number) => publicApi.get(`/api/crew/${crewId}/recent-feedbacks/`),
 };
 
 export const placementFamilyApi = {

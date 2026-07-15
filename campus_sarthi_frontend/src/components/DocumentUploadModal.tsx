@@ -62,7 +62,7 @@ export default function DocumentUploadModal({
     data.append('title', formData.title);
     data.append('description', formData.description);
     data.append('section', formData.section);
-    data.append('company', String(companyId));
+    // NOTE: 'company' is NOT sent — backend extracts from URL /{company_id}/documents/upload/
 
     setIsUploading(true);
     try {

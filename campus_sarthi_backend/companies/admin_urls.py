@@ -4,7 +4,9 @@ from .views import (
     AdminCompanyApproveView, AdminCompanyRejectView,
     CompanyDraftSaveView, CompanyDraftResumeView,
     AdminCompanyDocumentListView, AdminCompanyDocumentApproveView,
-    AdminCompanyDocumentRejectView, AdminCompanyDocumentDeleteView
+    AdminCompanyDocumentRejectView, AdminCompanyDocumentDeleteView,
+    AdminCompanyContributionListView, AdminCompanyContributionApproveView,
+    AdminCompanyContributionRejectView
 )
 
 urlpatterns = [
@@ -19,4 +21,8 @@ urlpatterns = [
     path('company-documents/<int:pk>/approve/', AdminCompanyDocumentApproveView.as_view(), name='admin-company-document-approve'),
     path('company-documents/<int:pk>/reject/', AdminCompanyDocumentRejectView.as_view(), name='admin-company-document-reject'),
     path('company-documents/<int:pk>/', AdminCompanyDocumentDeleteView.as_view(), name='admin-company-document-delete'),
+    # Contributions
+    path('company-contributions/', AdminCompanyContributionListView.as_view(), name='admin-company-contribution-list'),
+    path('company-contributions/<int:pk>/approve/', AdminCompanyContributionApproveView.as_view(), name='admin-company-contribution-approve'),
+    path('company-contributions/<int:pk>/reject/', AdminCompanyContributionRejectView.as_view(), name='admin-company-contribution-reject'),
 ]

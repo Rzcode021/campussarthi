@@ -14,6 +14,8 @@ class CustomUser(AbstractUser):
         ('ENTC', 'Electronics & Telecom'),
         ('Mechanical', 'Mechanical'),
         ('Civil', 'Civil'),
+        ('CyberSecurity', 'CyberSecurity'),
+        ('MBA', 'MBA'),
         ('Other', 'Other'),
     )
     YEAR_CHOICES = ((1, 'First'), (2, 'Second'), (3, 'Third'), (4, 'Final'))

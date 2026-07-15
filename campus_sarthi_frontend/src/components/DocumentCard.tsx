@@ -1,4 +1,3 @@
-import React from 'react';
 import { Download, FileText, FileCode, FileImage, FileAudio, FileVideo, Eye } from 'lucide-react';
 import type { CompanyDocument } from '../types/company';
 

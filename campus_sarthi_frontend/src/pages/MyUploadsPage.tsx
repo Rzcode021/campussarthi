@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FileText, Building2, Download, Clock, CheckCircle2, XCircle, Info, Eye } from 'lucide-react';
 import { studyMaterialsApi } from '../services/studyMaterialsApi';
 import { companyDocumentsApi } from '../services/companyDocumentsApi';

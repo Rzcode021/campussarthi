@@ -26,17 +26,24 @@ class SubmitRatingView(APIView):
             crew_member = CrewMember.objects.get(pk=pk)
             stars = request.data.get('stars')
             comment = request.data.get('comment', '')
+            name = request.data.get('name', '')
+            year = request.data.get('year')
+            branch = request.data.get('branch', '')
 
             if not stars or int(stars) < 1 or int(stars) > 5:
                 return Response({'error': 'Stars must be between 1 and 5'}, status=status.HTTP_400_BAD_REQUEST)
 
-            CrewRating.objects.update_or_create(
+            # Create new rating instead of update_or_create
+            rating = CrewRating.objects.create(
                 crew_member=crew_member,
-                rated_by=request.user,
-                defaults={'stars': int(stars), 'comment': comment}
+                rated_by=request.user if request.user.is_authenticated else None,
+                name=name,
+                year=year,
+                branch=branch,
+                stars=int(stars),
+                comment=comment
             )
-            serializer = CrewMemberSerializer(crew_member)
-            return Response(serializer.data)
+            return Response(CrewRatingSerializer(rating).data, status=status.HTTP_201_CREATED)
         except CrewMember.DoesNotExist:
             return Response({'error': 'Crew member not found'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -45,15 +52,18 @@ class MyRatingsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        ratings = CrewRating.objects.filter(rated_by=request.user)
-        result = {}
-        for r in ratings:
-            result[r.crew_member_id] = {
-                'stars': r.stars,
-                'comment': r.comment,
-                'updated_at': r.updated_at.isoformat()
-            }
-        return Response(result)
+        ratings = CrewRating.objects.filter(rated_by=request.user).order_by('-created_at')
+        serializer = CrewRatingSerializer(ratings, many=True)
+        return Response(serializer.data)
+
+
+class CrewRecentFeedbacksView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, crew_id):
+        ratings = CrewRating.objects.filter(crew_member_id=crew_id).exclude(comment='').order_by('-created_at')[:10]
+        serializer = CrewRatingSerializer(ratings, many=True)
+        return Response(serializer.data)
 
 
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser

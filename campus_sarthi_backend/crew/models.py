@@ -17,14 +17,17 @@ class CrewMember(models.Model):
 
 class CrewRating(models.Model):
     crew_member = models.ForeignKey(CrewMember, on_delete=models.CASCADE, related_name='ratings')
-    rated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    rated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
+    name = models.CharField(max_length=100, blank=True)
+    year = models.IntegerField(null=True, blank=True)
+    branch = models.CharField(max_length=100, blank=True)
     stars = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
     comment = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ('crew_member', 'rated_by')
+        ordering = ['-created_at']
 
 
 class PlacementFamilyMember(models.Model):

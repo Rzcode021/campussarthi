@@ -1,46 +1,59 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useCallback } from 'react';
 import type { ReactNode } from 'react';
-import { bookmarksApi } from '../services/bookmarksApi';
 import { useAuth } from './AuthContext';
+import { useAppStore } from '../store/useAppStore';
 
 interface BookmarkContextType {
-  bookmarks: Set<string>;
-  toggleBookmark: (type: 'company' | 'question', id: number) => Promise<void>;
-  isBookmarked: (type: 'company' | 'question', id: number) => boolean;
+  toggleBookmark: (type: 'company' | 'question' | 'resource', id: number) => Promise<void>;
+  isBookmarked: (type: 'company' | 'question' | 'resource', id: number) => boolean;
 }
 
 const BookmarkContext = createContext<BookmarkContextType | null>(null);
 
 export function BookmarkProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
-  const [bookmarks, setBookmarks] = useState<Set<string>>(new Set());
+  const storeBookmarks = useAppStore(state => state.bookmarks);
+  const addBookmark = useAppStore(state => state.addBookmark);
+  const removeBookmark = useAppStore(state => state.removeBookmark);
 
-  useEffect(() => {
-    if (!isAuthenticated) { setBookmarks(new Set()); return; }
-    bookmarksApi.getAll().then((res) => {
-      const keys = res.data.map((b: { bookmark_type: string; object_id: number }) =>
-        `${b.bookmark_type}-${b.object_id}`
-      );
-      setBookmarks(new Set(keys));
-    }).catch(() => {});
-  }, [isAuthenticated]);
+  const toggleBookmark = useCallback(async (type: 'company' | 'question' | 'resource', id: number) => {
+    if (!isAuthenticated) return;
+    const bookmarkId = `${type}-${id}`;
+    const exists = useAppStore.getState().bookmarks.find(b => b.id === bookmarkId);
+    
+    if (exists) {
+      removeBookmark(bookmarkId);
+    } else {
+      let title = `${type} ${id}`;
+      let url = '/';
+      
+      if (type === 'company') {
+        const c = useAppStore.getState().companies.find(c => c.id === id);
+        if (c) { title = c.name; url = `/companies/${id}`; }
+      } else if (type === 'resource') {
+        url = '/resources';
+        title = 'Saved Resource';
+      } else if (type === 'question') {
+        url = '/companies';
+        title = `Question Q${id}`;
+      }
+      
+      addBookmark({
+        id: bookmarkId,
+        type: type as any,
+        title,
+        url,
+        addedAt: new Date().toISOString()
+      });
+    }
+  }, [isAuthenticated, addBookmark, removeBookmark]);
 
-  const toggleBookmark = useCallback(async (type: 'company' | 'question', id: number) => {
-    const key = `${type}-${id}`;
-    await bookmarksApi.toggle(type, id);
-    setBookmarks((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  }, []);
-
-  const isBookmarked = useCallback((type: 'company' | 'question', id: number) =>
-    bookmarks.has(`${type}-${id}`), [bookmarks]);
+  const isBookmarked = useCallback((type: 'company' | 'question' | 'resource', id: number) => {
+    return storeBookmarks.some(b => b.id === `${type}-${id}`);
+  }, [storeBookmarks]);
 
   return (
-    <BookmarkContext.Provider value={{ bookmarks, toggleBookmark, isBookmarked }}>
+    <BookmarkContext.Provider value={{ toggleBookmark, isBookmarked }}>
       {children}
     </BookmarkContext.Provider>
   );

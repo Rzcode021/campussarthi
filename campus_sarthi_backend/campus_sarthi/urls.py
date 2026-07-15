@@ -12,6 +12,7 @@ urlpatterns = [
     path('api/news/', include('news.urls')),
     path('api/bookmarks/', include('bookmarks.urls')),
     path('api/study-materials/', include('study_materials.urls')),
+    path('api/events/', include('events.urls')),
     # Admin API routes
     path('api/admin/', include('accounts.admin_urls')),
     path('api/admin/', include('companies.admin_urls')),

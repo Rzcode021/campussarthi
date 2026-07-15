@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Check, ArrowLeft, ArrowRight, Trash2, Plus, Info } from 'lucide-react';
+import { X, Check, ArrowLeft, ArrowRight, Trash2, Plus } from 'lucide-react';
 import { useCompanyWizard } from '../hooks/useCompanyWizard';
 import { getDomainColor, getCompanyInitial } from '../utils/companyAvatar';
 

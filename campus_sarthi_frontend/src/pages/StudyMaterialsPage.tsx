@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Download, FileText, Eye } from 'lucide-react';
 import { studyMaterialsApi } from '../services/studyMaterialsApi';
 import type { StudyMaterial } from '../types/studyMaterial';

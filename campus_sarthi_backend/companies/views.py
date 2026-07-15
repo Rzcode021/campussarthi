@@ -6,10 +6,11 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
-from .models import Company, CompanyDocument
+from .models import Company, CompanyDocument, CompanyContribution
 from .serializers import (
     CompanyListSerializer, CompanyDetailSerializer, CompanyCreateSerializer,
-    CompanyDocumentSerializer, CompanyDocumentUploadSerializer, AdminCompanyDocumentSerializer
+    CompanyDocumentSerializer, CompanyDocumentUploadSerializer, AdminCompanyDocumentSerializer,
+    CompanyContributionSerializer, AdminCompanyContributionSerializer
 )
 from .permissions import IsCrewOrAdmin
 
@@ -133,6 +134,22 @@ class AdminCompanyDetailView(APIView):
                 serializer.save()
                 return Response(serializer.data)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Company.DoesNotExist:
+            return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    def delete(self, request, pk):
+        try:
+            company = Company.objects.get(pk=pk)
+            # Remove all associated data (Django CASCADE handles most, but maybe Cloudinary?)
+            if company.logo:
+                import cloudinary.uploader
+                try:
+                    public_id = os.path.splitext(company.logo.name)[0]
+                    cloudinary.uploader.destroy(public_id)
+                except Exception:
+                    pass
+            company.delete()
+            return Response({'message': 'Company deleted'})
         except Company.DoesNotExist:
             return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -280,3 +297,80 @@ class AdminCompanyDocumentDeleteView(APIView):
                 pass
         doc.delete()
         return Response({"message": "Document deleted"})
+
+
+# --- Company Contribution Views ---
+
+class CompanyContributionCreateView(APIView):
+    permission_classes = [IsAuthenticated, IsCrewOrAdmin]
+
+    def post(self, request, company_id):
+        company = get_object_or_404(Company, id=company_id, status='approved')
+        serializer = CompanyContributionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(company=company, submitted_by=request.user, status='pending')
+        return Response({
+            "message": "Contribution submitted for admin review"
+        }, status=status.HTTP_201_CREATED)
+
+
+class AdminCompanyContributionListView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def get(self, request):
+        contributions = CompanyContribution.objects.all()
+        status_filter = request.query_params.get('status')
+        if status_filter:
+            contributions = contributions.filter(status=status_filter)
+        serializer = AdminCompanyContributionSerializer(contributions, many=True)
+        return Response(serializer.data)
+
+
+class AdminCompanyContributionApproveView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def post(self, request, pk):
+        contribution = get_object_or_404(CompanyContribution, pk=pk)
+        company = contribution.company
+        
+        # Move content to live company section
+        # Content is stored in contribution.content
+        # Map contribution_type to Company field
+        field_map = {
+            'gd_questions': 'gd_questions',
+            'interview_questions': 'interview_questions',
+            'tech_requirements': 'tech_requirements',
+            'job_profile': 'job_role',
+            'package_info': 'package_details'
+        }
+        
+        field_name = field_map.get(contribution.contribution_type)
+        if field_name:
+            if field_name in ['gd_questions', 'interview_questions', 'tech_requirements']:
+                # These are JSONFields (lists)
+                current_list = getattr(company, field_name, [])
+                if not isinstance(current_list, list): current_list = []
+                current_list.append(contribution.content)
+                setattr(company, field_name, current_list)
+            else:
+                # CharField or TextField
+                setattr(company, field_name, contribution.content)
+            
+            company.save()
+
+        contribution.status = 'approved'
+        contribution.approved_by = request.user
+        contribution.save(update_fields=['status', 'approved_by'])
+        
+        return Response({"message": "Contribution approved and moved to live section"})
+
+
+class AdminCompanyContributionRejectView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def post(self, request, pk):
+        contribution = get_object_or_404(CompanyContribution, pk=pk)
+        contribution.status = 'rejected'
+        contribution.rejection_reason = request.data.get('reason', '')
+        contribution.save(update_fields=['status', 'rejection_reason'])
+        return Response({"message": "Contribution rejected"})

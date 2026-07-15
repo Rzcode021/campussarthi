@@ -1,8 +1,7 @@
-import { useEffect, useState, memo } from 'react';
+import { useState } from 'react';
 import { Search, Building2 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { companiesApi } from '../services/companiesApi';
-import type { Company } from '../types/company';
+import { useAppStore } from '../store/useAppStore';
 import CompanyCard from '../components/CompanyCard';
 import SkeletonCard from '../components/SkeletonCard';
 import EmptyState from '../components/EmptyState';
@@ -20,21 +19,16 @@ const fadeUp = {
 };
 
 export default function CompaniesPage() {
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const allCompanies = useAppStore((state) => state.companies);
   const [activeDomain, setActiveDomain] = useState('All');
   const [search, setSearch] = useState('');
 
-  useEffect(() => {
-    setIsLoading(true);
-    const timer = setTimeout(() => {
-      companiesApi.getAll(activeDomain !== 'All' ? activeDomain : undefined, search || undefined)
-        .then((res) => setCompanies(res.data))
-        .catch(() => setCompanies([]))
-        .finally(() => setIsLoading(false));
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [activeDomain, search]);
+  const companies = allCompanies.filter(c => {
+    const matchDomain = activeDomain === 'All' || c.domain === activeDomain;
+    const matchSearch = c.name.toLowerCase().includes(search.toLowerCase());
+    return matchDomain && matchSearch && c.status === 'approved';
+  });
+  const isLoading = false;
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -109,7 +103,7 @@ export default function CompaniesPage() {
         >
           {companies.map((c) => (
             <motion.div key={c.id} variants={fadeUp}>
-              <CompanyCard company={c} />
+              <CompanyCard company={c as any} />
             </motion.div>
           ))}
         </motion.div>

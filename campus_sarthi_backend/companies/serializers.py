@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Company, CompanyDocument
+from .models import Company, CompanyDocument, CompanyContribution
 
 
 class CompanyListSerializer(serializers.ModelSerializer):
@@ -78,7 +78,7 @@ class CompanyDocumentSerializer(serializers.ModelSerializer):
 class CompanyDocumentUploadSerializer(serializers.ModelSerializer):
     class Meta:
         model = CompanyDocument
-        fields = ['company', 'section', 'title', 'description', 'file']
+        fields = ['section', 'title', 'description', 'file']
 
     def validate_file(self, value):
         import os
@@ -87,6 +87,9 @@ class CompanyDocumentUploadSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("File size must be under 25MB")
             
         ext = os.path.splitext(value.name)[1].upper().lstrip('.')
+        allowed = {'PDF', 'DOC', 'DOCX', 'PPT', 'PPTX', 'XLS', 'XLSX', 'PNG', 'JPG', 'JPEG', 'WEBP'}
+        if ext not in allowed:
+            raise serializers.ValidationError(f"File type .{ext} not supported. Allowed: PDF, DOC, DOCX, images.")
         self._computed_file_type = ext or 'FILE'
         
         if size < 1024 * 1024:
@@ -115,3 +118,26 @@ class AdminCompanyDocumentSerializer(serializers.ModelSerializer):
 
     def get_uploaded_by_name(self, obj):
         return obj.uploaded_by.full_name if obj.uploaded_by else "Admin"
+
+
+class CompanyContributionSerializer(serializers.ModelSerializer):
+    submitted_by_name = serializers.ReadOnlyField(source='submitted_by.full_name')
+    company_name = serializers.ReadOnlyField(source='company.name')
+
+    class Meta:
+        model = CompanyContribution
+        fields = [
+            'id', 'company', 'company_name', 'contribution_type', 
+            'content', 'file', 'status', 'submitted_by_name', 
+            'created_at', 'rejection_reason'
+        ]
+        read_only_fields = ['status', 'submitted_by_name', 'created_at', 'rejection_reason']
+
+
+class AdminCompanyContributionSerializer(serializers.ModelSerializer):
+    submitted_by_name = serializers.ReadOnlyField(source='submitted_by.full_name')
+    company_name = serializers.ReadOnlyField(source='company.name')
+
+    class Meta:
+        model = CompanyContribution
+        fields = '__all__'

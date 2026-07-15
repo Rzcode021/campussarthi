@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     'news',
     'bookmarks',
     'study_materials',
+    'events',
 ]
 
 import cloudinary
