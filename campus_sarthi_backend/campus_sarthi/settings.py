@@ -9,7 +9,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'fallback-secret-key-for-dev-only')
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
-ALLOWED_HOSTS = ['*'] if DEBUG else os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+def _csv_env(name: str, default: str) -> list[str]:
+    return [item.strip() for item in os.getenv(name, default).split(',') if item.strip()]
+
+
+ALLOWED_HOSTS = ['*'] if DEBUG else _csv_env('ALLOWED_HOSTS', 'localhost,127.0.0.1')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -148,5 +152,6 @@ _default_cors_origins = [
     'http://127.0.0.1:5175',
 ]
 
-CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', ','.join(_default_cors_origins)).split(',')
+CORS_ALLOWED_ORIGINS = _csv_env('CORS_ALLOWED_ORIGINS', ','.join(_default_cors_origins))
+CORS_ALLOWED_ORIGIN_REGEXES = [r'^https://.*\.vercel\.app$']
 CORS_ALLOW_CREDENTIALS = True
