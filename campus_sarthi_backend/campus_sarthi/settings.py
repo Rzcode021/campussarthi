@@ -134,7 +134,7 @@ SIMPLE_JWT = {
     'TOKEN_OBTAIN_SERIALIZER': 'accounts.serializers.CustomTokenObtainPairSerializer',
 }
 
-CORS_ALLOWED_ORIGINS = [
+_default_cors_origins = [
     'http://localhost:5173',
     'http://localhost:5174',
     'http://localhost:5175',
@@ -147,4 +147,6 @@ CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:5174',
     'http://127.0.0.1:5175',
 ]
+
+CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', ','.join(_default_cors_origins)).split(',')
 CORS_ALLOW_CREDENTIALS = True
