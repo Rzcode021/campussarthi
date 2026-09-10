@@ -6,3 +6,4 @@ Pillow
 cloudinary==1.36.0
 django-cloudinary-storage==0.3.0
 python-dotenv==1.0.0
+psycopg[binary]==3.3.5

@@ -2,10 +2,12 @@ import os
 from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
-
-load_dotenv()
+from django.core.exceptions import ImproperlyConfigured
+from psycopg import ProgrammingError
+from psycopg.conninfo import conninfo_to_dict
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / '.env')
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'fallback-secret-key-for-dev-only')
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
@@ -97,10 +99,25 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'campus_sarthi.wsgi.application'
 
+_database_url = os.getenv('DATABASE_URL')
+if not _database_url:
+    raise ImproperlyConfigured('DATABASE_URL must be set to the Neon PostgreSQL URL.')
+try:
+    _database_options = conninfo_to_dict(_database_url)
+except ProgrammingError:
+    raise ImproperlyConfigured('DATABASE_URL is not a valid PostgreSQL connection string.') from None
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': _database_options.pop('dbname', ''),
+        'USER': _database_options.pop('user', ''),
+        'PASSWORD': _database_options.pop('password', ''),
+        'HOST': _database_options.pop('host', ''),
+        'PORT': _database_options.pop('port', '5432'),
+        'OPTIONS': _database_options,
+        # Neon uses transaction pooling; cursors must not outlive a transaction.
+        'DISABLE_SERVER_SIDE_CURSORS': True,
     }
 }
 
